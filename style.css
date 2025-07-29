@@ -1,0 +1,168 @@
+/* style.css */
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: #fff;
+  font-family: "Segoe UI", sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  position: relative;
+}
+
+#canvasContainer {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#ui {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 350px;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6); /* semi-transparent black */
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  z-index: 10;
+  backdrop-filter: blur(
+    4px
+  ); /* optionnel, floute légèrement le fond derrière */
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+#title {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+#logo-placeholder {
+  width: 100%;
+  height: 150px;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  background: #222;
+  border: 1px solid #555;
+  color: white;
+  border-radius: 4px;
+  margin-top: 5px;
+  margin-bottom: 10px;
+}
+
+button {
+  padding: 8px 12px;
+  background: #555;
+  border: none;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #777;
+}
+
+input[type="range"] {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.textureBtn {
+  margin-right: 10px;
+  margin-top: 5px;
+}
+/* Active texture button */
+.textureBtn.active {
+  background: #00aaff;
+  color: black;
+  font-weight: bold;
+}
+
+#showMenuBtn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid #888;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 20;
+  display: none; /* caché par défaut */
+  backdrop-filter: blur(4px);
+  font-size: 18px;
+}
+
+#showMenuBtn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Conteneur d'effets */
+.ui-fragmented {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 999;
+  pointer-events: none;
+}
+
+.ui-piece {
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(0px);
+  transition: all 0.5s ease-out;
+  opacity: 1;
+}
+
+.ui-piece.animate-out {
+  animation: dispersePiece 1s forwards;
+}
+
+@keyframes dispersePiece {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  100% {
+    transform: translate(
+        calc(30px - 60px * random()),
+        calc(30px - 60px * random())
+      )
+      scale(0.7) rotateZ(10deg);
+    opacity: 0;
+    filter: blur(5px);
+  }
+}
