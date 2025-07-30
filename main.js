@@ -3,7 +3,7 @@ import { createParametricSurface, parametricPresets } from "./parametric.js";
 import { FUNCTION_PRESETS, PARAMETRIC_PRESETS } from "./presets.js";
 
 let scene, camera, renderer, mesh;
-let rotationSpeed = 0.01;
+let rotationSpeed = 0;
 let cameraDistance = 20;
 let cameraAngleX = 0; // angle horizontal (azimut)
 let cameraAngleY = 30 * (Math.PI / 180); // angle vertical (élévation) en radians
@@ -12,6 +12,16 @@ let wireSegments = 30;
 let useColorVariation = true;
 let domainRange = 5; // valeur initiale : -10 à +10
 let currentMode = "xyz"; // ou "parametric"
+let morphT = 0;
+let animatedMaterial; // global
+let animatedGeometry; // global
+let animatedMeshTime = 0;
+let offsetX = 0;
+let offsetY = 0;
+let animateXY = false;
+let moveOnX = true;
+let moveOnY = false;
+let moveSpeed = 0;
 
 init();
 animate();
@@ -27,7 +37,7 @@ function init() {
     100
   );
   camera.position.set(0, 5, 10);
-  camera.lookAt(0, 0, 0);
+  camera.lookAt(-0, 0, -0);
 
   // Lumière
   const light = new THREE.PointLight(0xffffff, 1);
@@ -46,6 +56,8 @@ function init() {
   // Réaction au bouton
   document.getElementById("updateBtn").addEventListener("click", () => {
     currentMode = "xyz"; // <-- Ajout
+    offsetX = 0;
+    offsetY = 0;
 
     if (mesh) scene.remove(mesh);
     createSurface();
@@ -61,7 +73,19 @@ function init() {
 function createSurface() {
   if (currentMode !== "xyz") return; // <-- ne fait rien si on n'est pas en mode xyz
 
-  const expr = document.getElementById("functionInput").value;
+  const expr1 = document.getElementById("functionInput").value;
+  const expr2 = document.getElementById("functionInput2")
+    ? document.getElementById("functionInput2").value
+    : expr1; // fallback
+
+  let func1, func2;
+  try {
+    func1 = new Function("x", "y", `return ${expr1};`);
+    func2 = new Function("x", "y", `return ${expr2};`);
+  } catch (e) {
+    alert("Erreur dans une expression : " + e.message);
+    return;
+  }
 
   const segments = wireSegments;
   const xRange = domainRange;
@@ -70,23 +94,14 @@ function createSurface() {
   const vertices = [];
   const zValues = [];
 
-  function parseFunction(str) {
-    return new Function("x", "y", `return ${str};`);
-  }
-
-  let func;
-  try {
-    func = parseFunction(expr);
-  } catch (e) {
-    alert("Erreur dans l'expression : " + e.message);
-    return;
-  }
-
   for (let i = 0; i < segments; i++) {
     for (let j = 0; j < segments; j++) {
       const x = (i / (segments - 1)) * xRange * 2 - xRange;
       const y = (j / (segments - 1)) * yRange * 2 - yRange;
-      const z = func(x, y);
+
+      const z1 = func1(x + offsetX, y + offsetY);
+      const z2 = func2(x + offsetX, y + offsetY);
+      const z = (1 - morphT) * z1 + morphT * z2;
       vertices.push(x, z, y);
       zValues.push(z);
     }
@@ -100,6 +115,7 @@ function createSurface() {
 
   // Appel texture → retourne un mesh
   mesh = applyTextureToMesh(vertices, zValues, segments, zMin, zMax);
+  mesh.position.set(0, 0, 0);
 
   if (previousRotation) {
     mesh.rotation.copy(previousRotation);
@@ -118,7 +134,31 @@ function animate() {
   camera.position.y = cameraDistance * Math.sin(cameraAngleY);
   camera.position.z =
     cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
-  camera.lookAt(0, 0, 0);
+  camera.lookAt(-0, 0, -0);
+
+  if (currentTexture === "animated_rainbow" && animatedGeometry) {
+    animatedMeshTime += 0.01;
+
+    const colors = animatedGeometry.attributes.color.array;
+    const z = animatedGeometry.attributes.position.array;
+
+    for (let i = 0; i < colors.length / 3; i++) {
+      const zi = z[i * 3 + 1];
+      const t = 0.5 + 0.5 * Math.sin(zi * 2 + animatedMeshTime);
+      const color = new THREE.Color().setHSL(t, 1.0, 0.5);
+      colors[i * 3 + 0] = color.r;
+      colors[i * 3 + 1] = color.g;
+      colors[i * 3 + 2] = color.b;
+    }
+
+    animatedGeometry.attributes.color.needsUpdate = true;
+  }
+  if (animateXY && currentMode === "xyz") {
+    if (moveOnX) offsetX += moveSpeed * 0.01;
+    if (moveOnY) offsetY += moveSpeed * 0.01;
+
+    updateSurface(); // recrée la surface avec nouveaux offsets
+  }
 
   renderer.render(scene, camera);
 }
@@ -360,6 +400,7 @@ document.querySelectorAll(".textureBtn").forEach((btn) => {
     if (texture === "2") currentTexture = "wire_detailled";
     if (texture === "3") currentTexture = "wire_glitch";
     if (texture === "4") currentTexture = "rainbow";
+    if (texture === "5") currentTexture = "animated_rainbow";
     if (mesh) scene.remove(mesh); // ⬅️ important pour éviter l'empilement
     updateSurface();
   });
@@ -372,6 +413,8 @@ document.getElementById("wireSegments").addEventListener("input", (e) => {
 
 document.getElementById("presetSelect").addEventListener("change", (e) => {
   const expr = e.target.value;
+  offsetX = 0;
+  offsetY = 0;
   if (expr) {
     currentMode = "xyz"; // <-- Ajout
 
@@ -680,6 +723,8 @@ function applyTextureToMesh(vertices, zValues, segments, zMin, zMax) {
       return createGlitchWireframe(vertices, segments, zMin, zMax);
     case "wire_gradient":
       return createColorWireframe(vertices, segments);
+    case "animated_rainbow":
+      return createAnimatedRainbowMesh(vertices, zValues, segments, zMin, zMax);
     default:
       console.warn("Texture inconnue :", currentTexture);
       return null;
@@ -724,4 +769,85 @@ document.getElementById("presetParamSelect").addEventListener("change", (e) => {
   // Génération directe
   currentMode = "parametric";
   createParamSurface();
+});
+
+document.getElementById("morphSlider").addEventListener("input", (e) => {
+  morphT = parseFloat(e.target.value);
+  if (currentMode === "xyz") updateSurface();
+});
+
+document.getElementById("morphSlider").addEventListener("input", (e) => {
+  morphT = parseFloat(e.target.value);
+  document.getElementById("morphValue").textContent = morphT.toFixed(2);
+  if (currentMode === "xyz") updateSurface();
+});
+
+function createAnimatedRainbowMesh(vertices, zValues, segments, zMin, zMax) {
+  const geometry = new THREE.BufferGeometry();
+
+  const indices = [];
+  for (let i = 0; i < segments - 1; i++) {
+    for (let j = 0; j < segments - 1; j++) {
+      const a = i * segments + j;
+      const b = a + 1;
+      const c = a + segments;
+      const d = c + 1;
+      indices.push(a, b, d, a, d, c);
+    }
+  }
+
+  const colors = [];
+  for (let i = 0; i < zValues.length; i++) {
+    const z = zValues[i];
+    const t = (z - zMin) / (zMax - zMin);
+    const hue = t;
+    const color = new THREE.Color().setHSL(hue, 1.0, 0.5);
+    colors.push(color.r, color.g, color.b);
+  }
+
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(vertices, 3)
+  );
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  animatedGeometry = geometry; // pour animation
+
+  animatedMaterial = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+  });
+
+  return new THREE.Mesh(geometry, animatedMaterial);
+}
+
+document.getElementById("moveToggle").addEventListener("change", (e) => {
+  animateXY = e.target.checked;
+});
+
+document.getElementById("moveX").addEventListener("change", (e) => {
+  moveOnX = e.target.checked;
+});
+
+document.getElementById("moveY").addEventListener("change", (e) => {
+  moveOnY = e.target.checked;
+});
+
+document.getElementById("resetOffsetBtn").addEventListener("click", () => {
+  offsetX = 0;
+  offsetY = 0;
+  updateSurface();
+});
+
+document.getElementById("moveSpeed").addEventListener("input", (e) => {
+  moveSpeed = parseFloat(e.target.value);
+});
+
+["uMin", "uMax", "vMin", "vMax"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", () => {
+    currentMode = "parametric";
+    createParamSurface();
+  });
 });

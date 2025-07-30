@@ -2,7 +2,7 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <title>3D Surface Mesher</title>
+    <title>3D Mesher Visualiser</title>
     <link rel="stylesheet" href="style.css" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap"
@@ -21,20 +21,25 @@
 
     <div id="ui">
       <div id="title">
-        <h1>3D Surface Mesher</h1>
+        <h1>3D Mesher Visualiser</h1>
       </div>
 
       <div class="section">
         <h3>XYZ Plan</h3>
-        <label for="functionInput">Function z = f(x, y)</label>
         <div class="function-row">
+          <label for="functionInput">Function z = f(x, y)</label>
           <input
             type="text"
             id="functionInput"
             value="(x * Math.sin(y) + y * Math.cos(x)) / 2"
           />
-          <button id="updateBtn">Update</button>
         </div>
+        <div class="function-row">
+          <label for="functionInput2">Function 2 z = f₂(x, y)</label>
+          <input type="text" id="functionInput2" value="Math.sin(x*y)" />
+        </div>
+        <button id="updateBtn">Update</button>
+
         <div class="inline-row">
           <label for="presetSelect">Sample functions :</label>
           <select id="presetSelect">
@@ -111,7 +116,7 @@
 
       <div class="section">
         <h3>Animation</h3>
-        <label for="rangeSlider">Domain Range</label>
+        <label for="rangeSlider">Domain Range (Only XYZ)</label>
         <input
           type="range"
           id="rangeSlider"
@@ -120,6 +125,20 @@
           step="1"
           value="10"
         />
+        <label for="morphSlider"
+          >Morphing (Only XYZ) - Transition :
+          <span id="morphValue">0</span></label
+        >
+
+        <input
+          type="range"
+          id="morphSlider"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0"
+        />
+
         <label>Rotation Speed</label>
         <input
           type="range"
@@ -127,8 +146,34 @@
           min="-0.05"
           max="0.05"
           step="0.001"
-          value="0.01"
+          value="0"
         /><br />
+
+        <h3>Plan motion</h3>
+        <div class="inline-row">
+          <label>
+            <input type="checkbox" id="moveToggle" />
+            Animate Plane
+          </label>
+          <label>
+            <input type="checkbox" id="moveX" checked />
+            X-axis
+          </label>
+          <label>
+            <input type="checkbox" id="moveY" />
+            Y-axis
+          </label>
+        </div>
+        <label for="moveSpeed">Move Speed</label>
+        <input
+          type="range"
+          id="moveSpeed"
+          min="-5"
+          max="5"
+          step="0.05"
+          value="0"
+        />
+        <button id="resetOffsetBtn">Reset Offset</button>
       </div>
 
       <div class="section">
@@ -138,6 +183,7 @@
           <button class="textureBtn" data-texture="2">Super-Mesh</button>
           <button class="textureBtn" data-texture="3">Glitch</button>
           <button class="textureBtn" data-texture="4">Rainbow</button>
+          <button class="textureBtn" data-texture="5">Animated Rainbow</button>
         </div>
 
         <div class="inline-row">
