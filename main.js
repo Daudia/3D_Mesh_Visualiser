@@ -2,6 +2,12 @@
 
 let scene, camera, renderer, mesh;
 let rotationSpeed = 0.01;
+let cameraDistance = 10;
+let cameraAngleX = 0; // angle horizontal (azimut)
+let cameraAngleY = 30 * (Math.PI / 180); // angle vertical (élévation) en radians
+let currentTexture = "wire_white"; // texture par défaut
+let wireSegments = 30;
+let heightScale = 1; // Échelle verticale
 
 init();
 animate();
@@ -28,7 +34,7 @@ function init() {
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x000000);
-  document.body.appendChild(renderer.domElement);
+  document.getElementById("canvasContainer").appendChild(renderer.domElement);
 
   // Première surface
   createSurface();
@@ -48,15 +54,13 @@ function init() {
 
 function createSurface() {
   const expr = document.getElementById("functionInput").value;
-  const geometry = new THREE.BufferGeometry();
 
-  const size = 100;
   const segments = 100;
-  const vertices = [];
-  const colors = [];
-
   const xRange = 5;
   const yRange = 5;
+
+  const vertices = [];
+  const zValues = [];
 
   function parseFunction(str) {
     return new Function("x", "y", `return ${str};`);
@@ -74,71 +78,37 @@ function createSurface() {
     for (let j = 0; j < segments; j++) {
       const x = (i / (segments - 1)) * xRange * 2 - xRange;
       const y = (j / (segments - 1)) * yRange * 2 - yRange;
-
       const z = func(x, y);
-
       vertices.push(x, z, y);
-
-      const hue = 0.7 + 0.3 * Math.sin(z * 2); // variation chromatique
-      const color = new THREE.Color().setHSL(hue, 1.0, 0.5);
-      colors.push(color.r, color.g, color.b);
+      zValues.push(z);
     }
   }
 
-  const indices = [];
-  for (let i = 0; i < segments - 1; i++) {
-    for (let j = 0; j < segments - 1; j++) {
-      const a = i * segments + j;
-      const b = a + 1;
-      const c = a + segments;
-      const d = c + 1;
+  const zMin = Math.min(...zValues);
+  const zMax = Math.max(...zValues);
 
-      indices.push(a, b, d);
-      indices.push(a, d, c);
-    }
+  // Choix de la texture
+  if (currentTexture === "rainbow") {
+    createRainbowTexture(vertices, zValues, segments, zMin, zMax);
+  } else if (currentTexture === "wire_white") {
+    createWireframeTexture(vertices, segments);
+  } else if (currentTexture === "wire_color") {
+    createColorWireframe(vertices, zValues, segments, zMin, zMax);
   }
-
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(vertices, 3)
-  );
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-
-  const material = new THREE.MeshPhongMaterial({
-    vertexColors: true,
-    side: THREE.DoubleSide,
-    shininess: 100,
-    emissive: 0x111111,
-    specular: 0xffffff,
-  });
-
-  mesh = new THREE.Mesh(geometry, material);
-  scene.add(mesh);
-
-  // Texture buttons toggle
-  const textureButtons = document.querySelectorAll(".textureBtn");
-
-  // Par défaut, activer Option 1
-  document
-    .querySelector('.textureBtn[data-texture="1"]')
-    .classList.add("active");
-
-  textureButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      textureButtons.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      const textureOption = btn.dataset.texture;
-      console.log("Texture sélectionnée :", textureOption);
-      // Tu peux appeler ici une fonction pour changer de texture plus tard
-    });
-  });
 }
 
 function animate() {
   requestAnimationFrame(animate);
   if (mesh) mesh.rotation.y += rotationSpeed;
+
+  // Mise à jour dynamique de la position de caméra
+  camera.position.x =
+    cameraDistance * Math.sin(cameraAngleX) * Math.cos(cameraAngleY);
+  camera.position.y = cameraDistance * Math.sin(cameraAngleY);
+  camera.position.z =
+    cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+  camera.lookAt(0, 0, 0);
+
   renderer.render(scene, camera);
 }
 
@@ -156,44 +126,171 @@ showBtn.addEventListener("click", () => {
   showBtn.style.display = "none";
 });
 
-function playDisperseEffect(onComplete) {
-  const ui = document.getElementById("ui");
-  const rect = ui.getBoundingClientRect();
+// Contrôles de la caméra
+document.getElementById("zoomControl").addEventListener("input", (e) => {
+  cameraDistance = parseFloat(e.target.value);
+});
 
-  // Crée le conteneur
-  const fragmentContainer = document.createElement("div");
-  fragmentContainer.classList.add("ui-fragmented");
-  document.body.appendChild(fragmentContainer);
+document.getElementById("camX").addEventListener("input", (e) => {
+  cameraAngleX = parseFloat(e.target.value) * (Math.PI / 180); // en degrés → radians
+});
 
-  const cols = 6;
-  const rows = 6;
-  const total = cols * rows;
+document.getElementById("camY").addEventListener("input", (e) => {
+  cameraAngleY = parseFloat(e.target.value) * (Math.PI / 180);
+});
 
-  for (let i = 0; i < total; i++) {
-    const piece = document.createElement("div");
-    piece.classList.add("ui-piece");
+// Vitesse de rotation
+document.getElementById("rotationSpeed").addEventListener("input", (e) => {
+  rotationSpeed = parseFloat(e.target.value);
+});
 
-    // style individualisé
-    piece.style.animationDelay = `${Math.random() * 0.5}s`;
-    piece.style.background = getComputedStyle(ui).backgroundColor;
-    fragmentContainer.appendChild(piece);
+function createRainbowTexture(vertices, zValues, segments, zMin, zMax) {
+  const geometry = new THREE.BufferGeometry();
+  const colors = [];
 
-    // Ajoute la classe pour déclencher l’animation
-    requestAnimationFrame(() => {
-      piece.classList.add("animate-out");
-      const dx = (Math.random() - 0.5) * 100;
-      const dy = (Math.random() - 0.5) * 100;
-      piece.style.transform = `translate(${dx}px, ${dy}px) scale(0.7) rotate(${
-        (Math.random() - 0.5) * 30
-      }deg)`;
-      piece.style.filter = `blur(5px)`;
-      piece.style.opacity = 0;
-    });
+  for (let i = 0; i < vertices.length / 3; i++) {
+    const z = zValues[i];
+    const t = (z - zMin) / (zMax - zMin); // Normalisation
+    const hue = t; // teinte sur 0.0 → 1.0
+    const color = new THREE.Color().setHSL(hue, 1.0, 0.5); // saturation 100%, luminosité 50%
+    colors.push(color.r, color.g, color.b);
   }
 
-  // Attendre la fin de l'effet (~1s) avant d'appeler onComplete
-  setTimeout(() => {
-    fragmentContainer.remove();
-    onComplete();
-  }, 1000);
+  const indices = [];
+  for (let i = 0; i < segments - 1; i++) {
+    for (let j = 0; j < segments - 1; j++) {
+      const a = i * segments + j;
+      const b = a + 1;
+      const c = a + segments;
+      const d = c + 1;
+      indices.push(a, b, d, a, d, c);
+    }
+  }
+
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(vertices, 3)
+  );
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  const material = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+  });
+
+  if (mesh) scene.remove(mesh);
+  mesh = new THREE.Mesh(geometry, material);
+  scene.add(mesh);
 }
+
+function createWireframeTexture(vertices, segments) {
+  const geometry = new THREE.BufferGeometry();
+
+  const indices = [];
+  for (let i = 0; i < segments - 1; i++) {
+    for (let j = 0; j < segments - 1; j++) {
+      const a = i * segments + j;
+      const b = a + 1;
+      const c = a + segments;
+      const d = c + 1;
+      indices.push(a, b, d, a, d, c);
+    }
+  }
+
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(vertices, 3)
+  );
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    wireframe: true,
+    side: THREE.DoubleSide,
+  });
+
+  if (mesh) scene.remove(mesh);
+  mesh = new THREE.Mesh(geometry, material);
+  scene.add(mesh);
+}
+
+function createColorWireframe(vertices, zValues, segments, zMin, zMax) {
+  const geometry = new THREE.BufferGeometry();
+
+  const indices = [];
+  for (let i = 0; i < segments - 1; i++) {
+    for (let j = 0; j < segments - 1; j++) {
+      const a = i * segments + j;
+      const b = a + 1;
+      const c = a + segments;
+      const d = c + 1;
+      indices.push(a, b, d, a, d, c);
+    }
+  }
+
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(vertices, 3)
+  );
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  const edges = new THREE.EdgesGeometry(geometry);
+  const lineColors = [];
+  const position = geometry.attributes.position;
+  const vertexCount = edges.attributes.position.count;
+
+  for (let i = 0; i < vertexCount; i++) {
+    const z = position.getZ(i % position.count);
+    const t = (z - zMin) / (zMax - zMin);
+    const hue = 0.7 + 0.2 * t;
+    const color = new THREE.Color().setHSL(hue % 1.0, 1.0, 0.6);
+    lineColors.push(color.r, color.g, color.b);
+  }
+
+  edges.setAttribute("color", new THREE.Float32BufferAttribute(lineColors, 3));
+
+  const material = new THREE.LineBasicMaterial({
+    vertexColors: true,
+  });
+
+  if (mesh) scene.remove(mesh);
+  mesh = new THREE.LineSegments(edges, material);
+  scene.add(mesh);
+}
+
+document.querySelectorAll(".textureBtn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document
+      .querySelectorAll(".textureBtn")
+      .forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    const texture = btn.dataset.texture;
+    if (texture === "1") currentTexture = "rainbow";
+    if (texture === "2") currentTexture = "wire_white";
+    if (texture === "3") currentTexture = "wire_color";
+
+    if (mesh) scene.remove(mesh); // ⬅️ important pour éviter l'empilement
+    createSurface();
+  });
+});
+
+document.getElementById("wireSegments").addEventListener("input", (e) => {
+  wireSegments = parseInt(e.target.value);
+  if (currentTexture === "wire_overlay") {
+    createSurface(); // Recrée le mesh avec nouveau wireframe
+  }
+});
+
+document.getElementById("presetSelect").addEventListener("change", (e) => {
+  const expr = e.target.value;
+  if (expr) {
+    document.getElementById("functionInput").value = expr;
+    usePresetWormhole = false;
+    createSurface();
+  }
+});

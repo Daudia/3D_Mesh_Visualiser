@@ -28,11 +28,165 @@
         <div id="latexDisplay">
           \( z = \frac{1}{x^2 + 1} + \frac{1}{(x-2)^2 + 1} \)
         </div>
+        <label for="presetSelect">Formules d'essai :</label>
+        <select id="presetSelect">
+          <option value="">-- Choisir une formule --</option>
+          <option value="1 / ((x * x + 1)) + 1 / ((y * y + 1))">
+            Crête double
+          </option>
+          <option value="Math.sin(x * 2) * Math.cos(y * 2)">
+            Onde sinusoïdale
+          </option>
+          <option value="Math.sin(Math.sqrt(x * x + y * y) * 5)">
+            Onde radiale
+          </option>
+          <option value="-1 / (1 + x * x + y * y)">Cratère inversé</option>
+          <option value="Math.sin(x) + Math.sin(y)">Vagues croisées</option>
+          <option value="Math.sin(x * x - y * y)">Onde carrée radiale</option>
+          <option
+            value="Math.sin(10 * Math.atan2(y, x)) * Math.exp(-x * x - y * y)"
+          >
+            Explosion spirale
+          </option>
+          <option value="Math.sin(10 * x) * Math.sin(10 * y)">
+            Pics en grille
+          </option>
+          <option value="Math.sin(x*y) * Math.cos(x + y)">
+            Montagnes fractales
+          </option>
+          <option value="Math.exp(-x*x - y*y) * Math.sin(5*(x*x + y*y))">
+            Champignon central
+          </option>
+          <option value="Math.atan2(y, x) * Math.sqrt(x*x + y*y)">
+            Tourbillon polaire
+          </option>
+          <option value="Math.abs(Math.sin(3 * x) + Math.sin(3 * y))">
+            Crêtes dentelées
+          </option>
+          <option value="Math.cos(x + y)">Valons diagonaux</option>
+          <option value="-Math.abs(Math.sin(x) * Math.cos(y))">
+            Fosse sinusoïdale
+          </option>
+          <option value="-1 / (1 + Math.pow(x*x + y*y, 1.5))">
+            Trou inversé
+          </option>
+          <option value="Math.sin(x * y) * Math.sin(y)">
+            Champ d’interférence
+          </option>
+          <option value="Math.sign(Math.sin(x)) + Math.sign(Math.cos(y))">
+            Onde carrée
+          </option>
+          <option value="-Math.sqrt(x*x + y*y)">Cône inversé</option>
+          <option value="Math.sin(5 * Math.sqrt(x*x + y*y)) / (1 + x*x + y*y)">
+            Ondes concentriques amorties
+          </option>
+          <option value="Math.tan(0.5 * x) * Math.sin(y)">
+            Chaîne d’explosions
+          </option>
+          <option value="Math.cos(Math.sqrt(Math.abs(x * y)))">
+            Réseau radial
+          </option>
+          <option value="Math.atan2(y, x) + Math.sin(3 * Math.sqrt(x*x + y*y))">
+            Tourbillon perturbé
+          </option>
+          <option value="Math.sin(x + y) * Math.cos(x - y)">
+            Trame diagonale croisée
+          </option>
+          <option value="Math.sin(x*x - y*y)">Selle ondulée</option>
+          <option value="(x * Math.sin(y) + y * Math.cos(x)) / 2">
+            Dynamique tordue
+          </option>
+          <option
+            value="Math.exp(-Math.abs(x*y)) * Math.sin(4*x) * Math.cos(4*y)"
+          >
+            Fleur vibrante
+          </option>
+          <option value="Math.pow(Math.sin(x*x + y*y), 3)">
+            Champs cubique
+          </option>
+          <option value="Math.abs(Math.sin(x * y)) * Math.sign(x - y)">
+            Zébrures diagonales
+          </option>
+          <option value="Math.tan(x*y) / (1 + x*x + y*y)">
+            Chaotique rationnel
+          </option>
+          <option value="Math.sin(10 * (x*x - y*y)) / (10 + x*x + y*y)">
+            Lentilles interférentes
+          </option>
+          <option value="Math.sin(x) * Math.tan(y)">
+            Oscillations divergentes
+          </option>
+          <option value="Math.sign(x*y) * Math.sin(Math.sqrt(Math.abs(x - y)))">
+            Onde coupée
+          </option>
+          <option value="Math.atan2(Math.sin(y), Math.cos(x))">
+            Torsion circulaire
+          </option>
+          <option
+            value="Math.sin(Math.sqrt(x*x + y*y)) * Math.cos(Math.atan2(y, x))"
+          >
+            Sillage radial
+          </option>
+          <option value="Math.abs(Math.sin(3 * x) - Math.cos(3 * y))">
+            Grille chaotique
+          </option>
+          <option
+            value="Math.exp(-Math.pow(x*x + y*y, 0.3)) * Math.sin(6 * Math.sqrt(x*x + y*y))"
+          >
+            Cymatique douce
+          </option>
+          <option value="(Math.atan2(x, y) * Math.sin(x*x + y*y)) / 2">
+            Tourbillon fractal
+          </option>
+          <option value="Math.sin(x + y + Math.sin(x*y))">
+            Motif imbriqué
+          </option>
+          <option value="Math.sin(x) * Math.sin(y) + Math.cos(x + y)">
+            Onde yin-yang
+          </option>
+          <option value="Math.sin(Math.atan2(y, x) + Math.sqrt(x*x + y*y))">
+            Balance ondulée
+          </option>
+          <option value="Math.sin(x*x - y*y) * Math.cos(2 * x * y)">
+            Symétrie inversée
+          </option>
+          <option
+            value="Math.sin(Math.atan2(y, x) * 3) * Math.cos(Math.sqrt(x*x + y*y))"
+          >
+            Entrelac celtique
+          </option>
+          <option value="Math.sin(4 * Math.atan2(y, x)) * Math.sqrt(x*x + y*y)">
+            Spirale ondulée
+          </option>
+          <option
+            value="Math.sin(2 * Math.atan2(y, x)) + Math.cos(3 * Math.sqrt(x*x + y*y))"
+          >
+            Spirale croisée
+          </option>
+          <option value="Math.atan2(y, x) + Math.sin(x*x + y*y)">
+            Tourbillon perturbé
+          </option>
+          <option
+            value="Math.sin(5 * Math.atan2(y, x)) * Math.sin(2 * Math.sqrt(x*x + y*y))"
+          >
+            Spirale tressée
+          </option>
+          <option
+            value="Math.floor(5 * Math.atan2(y, x)) + Math.sqrt(x*x + y*y)"
+          >
+            Escalier en colimaçon
+          </option>
+          <option
+            value="Math.sin(Math.atan2(y, x) + 4 * Math.log(1 + x*x + y*y))"
+          >
+            Colimaçon logarithmique
+          </option>
+        </select>
       </div>
 
       <div class="section">
         <h3>Contrôles de caméra</h3>
-        <label>Zoom</label>
+        <label>Distance</label>
         <input
           type="range"
           id="zoomControl"
@@ -40,10 +194,12 @@
           max="50"
           value="10"
         /><br />
-        <label>Position X</label>
-        <input type="range" id="camX" min="-10" max="10" value="0" /><br />
-        <label>Position Y</label>
-        <input type="range" id="camY" min="-10" max="10" value="5" />
+
+        <label>Angle horizontal (gauche ↔ droite)</label>
+        <input type="range" id="camX" min="-180" max="180" value="0" /><br />
+
+        <label>Angle vertical (haut ↕ bas)</label>
+        <input type="range" id="camY" min="-90" max="90" value="30" />
       </div>
 
       <div class="section">
@@ -74,6 +230,18 @@
         <button class="textureBtn" data-texture="2">Option 2</button>
         <button class="textureBtn" data-texture="3">Option 3</button>
       </div>
+      <div class="section">
+        <label>Maillage wireframe</label>
+        <input
+          type="range"
+          id="wireSegments"
+          min="5"
+          max="100"
+          value="30"
+          step="1"
+        />
+      </div>
+
       <div class="section" style="text-align: center; margin-top: 40px">
         <button id="toggleMenuBtn">❌ Masquer le menu</button>
       </div>
@@ -85,7 +253,6 @@
 
     <script src="main.js"></script>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.7/dist/katex.min.js"></script>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/katex@0.16.7/dist/katex.min.css"
@@ -100,7 +267,7 @@
             .replace(/\*\*/g, "^")
             .replace(/\*/g, " \\cdot ")
             .replace(/\//g, "\\frac");
-          katex.render(`z = ${expression}`, latexDisplay, {
+          katex.render("z = ${expression}", latexDisplay, {
             throwOnError: false,
           });
         } catch (e) {
