@@ -2,12 +2,14 @@
 
 let scene, camera, renderer, mesh;
 let rotationSpeed = 0.01;
-let cameraDistance = 10;
+let cameraDistance = 20;
 let cameraAngleX = 0; // angle horizontal (azimut)
 let cameraAngleY = 30 * (Math.PI / 180); // angle vertical (élévation) en radians
-let currentTexture = "wire_overlay"; // texture par défaut
+let currentTexture = "wire_gradient"; // texture par défaut
 let wireSegments = 30;
 let heightScale = 1; // Échelle verticale
+let useColorVariation = true;
+let domainRange = 5; // valeur initiale : -10 à +10
 
 init();
 animate();
@@ -33,7 +35,7 @@ function init() {
   // Rendu
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setClearColor(0x000000);
+  renderer.setClearColor(0x0000000);
   document.getElementById("canvasContainer").appendChild(renderer.domElement);
 
   // Première surface
@@ -56,8 +58,8 @@ function createSurface() {
   const expr = document.getElementById("functionInput").value;
 
   const segments = currentTexture.includes("wire") ? wireSegments : 100;
-  const xRange = 5;
-  const yRange = 5;
+  const xRange = domainRange;
+  const yRange = domainRange;
 
   const vertices = [];
   const zValues = [];
@@ -87,18 +89,28 @@ function createSurface() {
   const zMin = Math.min(...zValues);
   const zMax = Math.max(...zValues);
 
-  // Choix de la texture
+  const previousRotation = mesh ? mesh.rotation.clone() : null;
+  if (mesh) scene.remove(mesh);
+
+  // Appel texture → retourne un mesh
   if (currentTexture === "rainbow") {
-    createRainbowTexture(vertices, zValues, segments, zMin, zMax);
-  } else if (currentTexture === "wire_white") {
-    createWireframeTexture(vertices, segments);
-  } else if (currentTexture === "wire_color") {
-    createGlitchWireframe(vertices, zValues, segments, zMin, zMax);
-  } else if (currentTexture === "wire_overlay") {
-    createColorWireframe(vertices, zValues, segments, zMin, zMax);
+    mesh = createRainbowTexture(vertices, zValues, segments, zMin, zMax);
+  } else if (currentTexture === "wire_detailled") {
+    mesh = createWireframeTexture(vertices, segments);
+  } else if (currentTexture === "wire_glitch") {
+    mesh = createGlitchWireframe(vertices, segments, zMin, zMax);
+  } else if (currentTexture === "wire_gradient") {
+    mesh = createColorWireframe(vertices, segments);
   } else {
     console.warn("Texture inconnue :", currentTexture);
+    return;
   }
+
+  if (previousRotation) {
+    mesh.rotation.copy(previousRotation);
+  }
+
+  scene.add(mesh);
 }
 
 function animate() {
@@ -184,9 +196,7 @@ function createRainbowTexture(vertices, zValues, segments, zMin, zMax) {
     side: THREE.DoubleSide,
   });
 
-  if (mesh) scene.remove(mesh);
-  mesh = new THREE.Mesh(geometry, material);
-  scene.add(mesh);
+  return new THREE.Mesh(geometry, material);
 }
 
 function createWireframeTexture(vertices, segments) {
@@ -210,18 +220,28 @@ function createWireframeTexture(vertices, segments) {
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
 
+  const baseColorHex = document.getElementById("colorPicker").value;
+  const color = new THREE.Color(baseColorHex);
+
+  let finalColor = color;
+  if (useColorVariation) {
+    const hsl = {};
+    color.getHSL(hsl);
+    hsl.h = (hsl.h + (Math.random() - 0.5) * 0.1 + 1) % 1;
+    hsl.l = THREE.MathUtils.clamp(hsl.l + (Math.random() - 0.5) * 0.1, 0, 1);
+    finalColor = new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l);
+  }
+
   const material = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+    color: finalColor,
     wireframe: true,
     side: THREE.DoubleSide,
   });
 
-  if (mesh) scene.remove(mesh);
-  mesh = new THREE.Mesh(geometry, material);
-  scene.add(mesh);
+  return new THREE.Mesh(geometry, material);
 }
 
-function createGlitchWireframe(vertices, zValues, segments, zMin, zMax) {
+function createGlitchWireframe(vertices, segments, zMin, zMax) {
   const geometry = new THREE.BufferGeometry();
 
   const indices = [];
@@ -261,22 +281,18 @@ function createGlitchWireframe(vertices, zValues, segments, zMin, zMax) {
     vertexColors: true,
   });
 
-  if (mesh) scene.remove(mesh);
-  mesh = new THREE.LineSegments(edges, material);
-  scene.add(mesh);
+  return new THREE.LineSegments(edges, material);
 }
 
-function createColorWireframe(vertices, zValues, segments, zMin, zMax) {
+function createColorWireframe(vertices, segments) {
   const linePositions = [];
   const lineColors = [];
 
-  // Récupère la couleur choisie par l'utilisateur
   const baseColorHex = document.getElementById("colorPicker").value;
   const baseColor = new THREE.Color(baseColorHex);
   const hsl = {};
   baseColor.getHSL(hsl);
 
-  // Génère les lignes horizontales
   for (let i = 0; i < segments; i++) {
     for (let j = 0; j < segments - 1; j++) {
       const idx1 = i * segments + j;
@@ -285,7 +301,6 @@ function createColorWireframe(vertices, zValues, segments, zMin, zMax) {
     }
   }
 
-  // Génère les lignes verticales
   for (let j = 0; j < segments; j++) {
     for (let i = 0; i < segments - 1; i++) {
       const idx1 = i * segments + j;
@@ -305,17 +320,20 @@ function createColorWireframe(vertices, zValues, segments, zMin, zMax) {
     );
 
     for (let i = 0; i < 2; i++) {
-      const variation = (Math.random() - 0.5) * 0.15;
-      const l = THREE.MathUtils.clamp(
-        hslBase.l + (Math.random() - 0.5) * 0.2,
-        0,
-        1
-      );
-      const color = new THREE.Color().setHSL(
-        (hslBase.h + variation) % 1.0,
-        hslBase.s,
-        l
-      );
+      let color = new THREE.Color().setHSL(hslBase.h, hslBase.s, hslBase.l);
+      if (useColorVariation) {
+        const variation = (Math.random() - 0.5) * 0.15;
+        const l = THREE.MathUtils.clamp(
+          hslBase.l + (Math.random() - 0.5) * 0.2,
+          0,
+          1
+        );
+        color = new THREE.Color().setHSL(
+          (hslBase.h + variation) % 1.0,
+          hslBase.s,
+          l
+        );
+      }
       lineColors.push(color.r, color.g, color.b);
     }
   }
@@ -332,9 +350,7 @@ function createColorWireframe(vertices, zValues, segments, zMin, zMax) {
 
   const material = new THREE.LineBasicMaterial({ vertexColors: true });
 
-  if (mesh) scene.remove(mesh);
-  mesh = new THREE.LineSegments(geometry, material);
-  scene.add(mesh);
+  return new THREE.LineSegments(geometry, material);
 }
 
 document.querySelectorAll(".textureBtn").forEach((btn) => {
@@ -345,11 +361,10 @@ document.querySelectorAll(".textureBtn").forEach((btn) => {
     btn.classList.add("active");
 
     const texture = btn.dataset.texture;
-    if (texture === "1") currentTexture = "rainbow";
-    if (texture === "2") currentTexture = "wire_white";
-    if (texture === "3") currentTexture = "wire_color";
-    if (texture === "4") currentTexture = "wire_overlay";
-
+    if (texture === "1") currentTexture = "wire_gradient";
+    if (texture === "2") currentTexture = "wire_detailled";
+    if (texture === "3") currentTexture = "wire_glitch";
+    if (texture === "4") currentTexture = "rainbow";
     if (mesh) scene.remove(mesh); // ⬅️ important pour éviter l'empilement
     createSurface();
   });
@@ -357,16 +372,224 @@ document.querySelectorAll(".textureBtn").forEach((btn) => {
 
 document.getElementById("wireSegments").addEventListener("input", (e) => {
   wireSegments = parseInt(e.target.value);
-  if (currentTexture === "wire_overlay") {
-    createSurface(); // Recrée le mesh avec nouveau wireframe
-  }
+  createSurface();
 });
 
 document.getElementById("presetSelect").addEventListener("change", (e) => {
   const expr = e.target.value;
   if (expr) {
     document.getElementById("functionInput").value = expr;
-    usePresetWormhole = false;
     createSurface();
   }
+});
+
+document
+  .getElementById("colorVariationToggle")
+  .addEventListener("change", (e) => {
+    useColorVariation = e.target.checked;
+    createSurface();
+  });
+
+const rootStyle = document.documentElement.style;
+const colorPicker = document.getElementById("colorPicker");
+
+function updateUIColor() {
+  const hex = colorPicker.value;
+  rootStyle.setProperty("--ui-base-color", hex);
+}
+
+colorPicker.addEventListener("input", () => {
+  updateUIColor();
+  if (mesh) scene.remove(mesh);
+  createSurface();
+});
+
+document.getElementById("colorPicker").addEventListener("input", (e) => {
+  const uiPanel = document.getElementById("ui");
+  const hex = e.target.value;
+  const color = new THREE.Color(hex);
+  const hsl = {};
+  color.getHSL(hsl);
+
+  // on recalcule une couleur RGBA à partir du HSL avec luminosité + alpha
+  const glowColor = `hsla(${Math.floor(hsl.h * 360)}, ${Math.floor(
+    hsl.s * 100
+  )}%, ${Math.floor(hsl.l * 100)}%, 0.45)`;
+
+  uiPanel.style.setProperty("--haloColor", glowColor);
+});
+
+function updateGlowColor() {
+  const color = document.getElementById("colorPicker").value;
+  document.documentElement.style.setProperty("--glow-color", color);
+}
+
+document
+  .getElementById("colorPicker")
+  .addEventListener("input", updateGlowColor);
+updateGlowColor(); // au chargement
+
+function hexToHSL(hex) {
+  const c = hex.replace("#", "");
+  const bigint = parseInt(c, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+
+  const rPerc = r / 255,
+    gPerc = g / 255,
+    bPerc = b / 255;
+  const max = Math.max(rPerc, gPerc, bPerc);
+  const min = Math.min(rPerc, gPerc, bPerc);
+  let h,
+    s,
+    l = (max + min) / 2;
+
+  if (max === min) {
+    h = s = 0;
+  } else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case rPerc:
+        h = (gPerc - bPerc) / d + (gPerc < bPerc ? 6 : 0);
+        break;
+      case gPerc:
+        h = (bPerc - rPerc) / d + 2;
+        break;
+      case bPerc:
+        h = (rPerc - gPerc) / d + 4;
+        break;
+    }
+    h /= 6;
+  }
+
+  h = Math.round(h * 360);
+  s = Math.round(s * 100);
+  l = Math.round(l * 100);
+  return { h, s, l };
+}
+
+function hslToHex(h, s, l) {
+  s /= 100;
+  l /= 100;
+
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) =>
+    Math.round(
+      255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))))
+    );
+
+  return `#${[f(0), f(8), f(4)]
+    .map((x) => x.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function updateGlowColor() {
+  const color = document.getElementById("colorPicker").value;
+  document.documentElement.style.setProperty("--glow-color", color);
+
+  const hsl = hexToHSL(color);
+
+  // 🎯 glow-edge = plus clair + saturé
+  const lighter = hslToHex(
+    hsl.h,
+    Math.min(hsl.s + 20, 100),
+    Math.min(hsl.l + 20, 100)
+  );
+  document.documentElement.style.setProperty("--glow-edge", lighter);
+
+  // 🎯 glow-dark = plus sombre + légère dérive chromatique
+  const shiftedHue = (hsl.h + 20) % 360; // décalage teinte
+  const darker = hslToHex(
+    shiftedHue,
+    Math.min(hsl.s + 15, 100),
+    Math.max(hsl.l - 25, 0)
+  );
+  document.documentElement.style.setProperty("--glow-dark", darker);
+}
+
+function updateThemeColors() {
+  const color = document.getElementById("colorPicker").value;
+
+  // Appliquer la couleur de base
+  document.documentElement.style.setProperty("--ui-base-color", color);
+  document.documentElement.style.setProperty("--glow-color", color);
+
+  // Générer une version plus sombre automatiquement
+  const darker = darkenHex(color, 0.6); // plus sombre à ~60%
+
+  document.documentElement.style.setProperty("--ui-base-color-dark", darker);
+  document.documentElement.style.setProperty("--glow-dark", darker);
+
+  // Variante claire et saturée (optionnelle pour bord vif)
+  const edge = lightenHex(color, 0.3);
+  document.documentElement.style.setProperty("--glow-edge", edge);
+}
+
+function darkenHex(hex, amount = 0.4) {
+  let { r, g, b } = hexToRGB(hex);
+  r = Math.floor(r * (1 - amount));
+  g = Math.floor(g * (1 - amount));
+  b = Math.floor(b * (1 - amount));
+  return rgbToHex(r, g, b);
+}
+
+function lightenHex(hex, amount = 0.3) {
+  let { r, g, b } = hexToRGB(hex);
+  r = Math.min(255, Math.floor(r + (255 - r) * amount));
+  g = Math.min(255, Math.floor(g + (255 - g) * amount));
+  b = Math.min(255, Math.floor(b + (255 - b) * amount));
+  return rgbToHex(r, g, b);
+}
+
+function hexToRGB(hex) {
+  hex = hex.replace("#", "");
+  if (hex.length === 3) {
+    hex = hex
+      .split("")
+      .map((c) => c + c)
+      .join("");
+  }
+  const bigint = parseInt(hex, 16);
+  return {
+    r: (bigint >> 16) & 255,
+    g: (bigint >> 8) & 255,
+    b: bigint & 255,
+  };
+}
+
+function rgbToHex(r, g, b) {
+  return (
+    "#" +
+    [r, g, b]
+      .map((x) => {
+        const hex = x.toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
+      })
+      .join("")
+  );
+}
+
+updateThemeColors();
+
+document.getElementById("colorPicker").addEventListener("input", (e) => {
+  const color = e.target.value;
+  const svg = document.getElementById("logo-svg");
+  if (svg) {
+    svg.style.stroke = color;
+    svg.style.fill = "none";
+  }
+
+  updateUIColor();
+  updateGlowColor();
+  updateThemeColors();
+
+  if (mesh) scene.remove(mesh);
+  createSurface();
+});
+document.getElementById("rangeSlider").addEventListener("input", (e) => {
+  domainRange = parseFloat(e.target.value);
+  createSurface();
 });
