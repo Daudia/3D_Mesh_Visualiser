@@ -1,4 +1,6 @@
 // main.js
+import { createParametricSurface, parametricPresets } from "./parametric.js";
+import { FUNCTION_PRESETS, PARAMETRIC_PRESETS } from "./presets.js";
 
 let scene, camera, renderer, mesh;
 let rotationSpeed = 0.01;
@@ -7,9 +9,9 @@ let cameraAngleX = 0; // angle horizontal (azimut)
 let cameraAngleY = 30 * (Math.PI / 180); // angle vertical (élévation) en radians
 let currentTexture = "wire_gradient"; // texture par défaut
 let wireSegments = 30;
-let heightScale = 1; // Échelle verticale
 let useColorVariation = true;
 let domainRange = 5; // valeur initiale : -10 à +10
+let currentMode = "xyz"; // ou "parametric"
 
 init();
 animate();
@@ -35,7 +37,7 @@ function init() {
   // Rendu
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setClearColor(0x0000000);
+  renderer.setClearColor(0x111111, 1); // couleur de fond
   document.getElementById("canvasContainer").appendChild(renderer.domElement);
 
   // Première surface
@@ -43,6 +45,8 @@ function init() {
 
   // Réaction au bouton
   document.getElementById("updateBtn").addEventListener("click", () => {
+    currentMode = "xyz"; // <-- Ajout
+
     if (mesh) scene.remove(mesh);
     createSurface();
   });
@@ -55,9 +59,11 @@ function init() {
 }
 
 function createSurface() {
+  if (currentMode !== "xyz") return; // <-- ne fait rien si on n'est pas en mode xyz
+
   const expr = document.getElementById("functionInput").value;
 
-  const segments = currentTexture.includes("wire") ? wireSegments : 100;
+  const segments = wireSegments;
   const xRange = domainRange;
   const yRange = domainRange;
 
@@ -93,18 +99,7 @@ function createSurface() {
   if (mesh) scene.remove(mesh);
 
   // Appel texture → retourne un mesh
-  if (currentTexture === "rainbow") {
-    mesh = createRainbowTexture(vertices, zValues, segments, zMin, zMax);
-  } else if (currentTexture === "wire_detailled") {
-    mesh = createWireframeTexture(vertices, segments);
-  } else if (currentTexture === "wire_glitch") {
-    mesh = createGlitchWireframe(vertices, segments, zMin, zMax);
-  } else if (currentTexture === "wire_gradient") {
-    mesh = createColorWireframe(vertices, segments);
-  } else {
-    console.warn("Texture inconnue :", currentTexture);
-    return;
-  }
+  mesh = applyTextureToMesh(vertices, zValues, segments, zMin, zMax);
 
   if (previousRotation) {
     mesh.rotation.copy(previousRotation);
@@ -322,14 +317,14 @@ function createColorWireframe(vertices, segments) {
     for (let i = 0; i < 2; i++) {
       let color = new THREE.Color().setHSL(hslBase.h, hslBase.s, hslBase.l);
       if (useColorVariation) {
-        const variation = (Math.random() - 0.5) * 0.15;
+        const variation = (Math.random() - 0.5) * 0.3;
         const l = THREE.MathUtils.clamp(
-          hslBase.l + (Math.random() - 0.5) * 0.2,
+          hslBase.l + (Math.random() - 0.5) * 0.5,
           0,
           1
         );
         color = new THREE.Color().setHSL(
-          (hslBase.h + variation) % 1.0,
+          (hslBase.h + variation) % 5.0,
           hslBase.s,
           l
         );
@@ -366,18 +361,20 @@ document.querySelectorAll(".textureBtn").forEach((btn) => {
     if (texture === "3") currentTexture = "wire_glitch";
     if (texture === "4") currentTexture = "rainbow";
     if (mesh) scene.remove(mesh); // ⬅️ important pour éviter l'empilement
-    createSurface();
+    updateSurface();
   });
 });
 
 document.getElementById("wireSegments").addEventListener("input", (e) => {
   wireSegments = parseInt(e.target.value);
-  createSurface();
+  updateSurface();
 });
 
 document.getElementById("presetSelect").addEventListener("change", (e) => {
   const expr = e.target.value;
   if (expr) {
+    currentMode = "xyz"; // <-- Ajout
+
     document.getElementById("functionInput").value = expr;
     createSurface();
   }
@@ -387,7 +384,7 @@ document
   .getElementById("colorVariationToggle")
   .addEventListener("change", (e) => {
     useColorVariation = e.target.checked;
-    createSurface();
+    updateSurface();
   });
 
 const rootStyle = document.documentElement.style;
@@ -401,7 +398,7 @@ function updateUIColor() {
 colorPicker.addEventListener("input", () => {
   updateUIColor();
   if (mesh) scene.remove(mesh);
-  createSurface();
+  updateSurface();
 });
 
 document.getElementById("colorPicker").addEventListener("input", (e) => {
@@ -418,11 +415,6 @@ document.getElementById("colorPicker").addEventListener("input", (e) => {
 
   uiPanel.style.setProperty("--haloColor", glowColor);
 });
-
-function updateGlowColor() {
-  const color = document.getElementById("colorPicker").value;
-  document.documentElement.style.setProperty("--glow-color", color);
-}
 
 document
   .getElementById("colorPicker")
@@ -587,9 +579,149 @@ document.getElementById("colorPicker").addEventListener("input", (e) => {
   updateThemeColors();
 
   if (mesh) scene.remove(mesh);
-  createSurface();
+  updateSurface();
 });
 document.getElementById("rangeSlider").addEventListener("input", (e) => {
   domainRange = parseFloat(e.target.value);
-  createSurface();
+  updateSurface();
+});
+
+document
+  .getElementById("generateParametricBtn")
+  .addEventListener("click", () => {
+    const xExpr = document.getElementById("paramX").value;
+    const yExpr = document.getElementById("paramY").value;
+    const zExpr = document.getElementById("paramZ").value;
+
+    const uMin = parseFloat(document.getElementById("uMin").value);
+    const uMax = parseFloat(document.getElementById("uMax").value);
+    const vMin = parseFloat(document.getElementById("vMin").value);
+    const vMax = parseFloat(document.getElementById("vMax").value);
+
+    const segments = 100;
+
+    if (mesh) scene.remove(mesh);
+    mesh = createParametricSurface({
+      xExpr,
+      yExpr,
+      zExpr,
+      uMin,
+      uMax,
+      vMin,
+      vMax,
+      segmentsU: segments,
+      segmentsV: segments,
+    });
+    scene.add(mesh);
+  });
+
+document
+  .getElementById("generateParametricBtn")
+  .addEventListener("click", () => {
+    if (mesh) scene.remove(mesh);
+    createParamSurface();
+  });
+
+function createParamSurface() {
+  currentMode = "parametric";
+
+  const xExpr = document.getElementById("paramX").value;
+  const yExpr = document.getElementById("paramY").value;
+  const zExpr = document.getElementById("paramZ").value;
+
+  const uMin = parseFloat(document.getElementById("uMin").value);
+  const uMax = parseFloat(document.getElementById("uMax").value);
+  const vMin = parseFloat(document.getElementById("vMin").value);
+  const vMax = parseFloat(document.getElementById("vMax").value);
+
+  const segments = wireSegments;
+
+  if (mesh) scene.remove(mesh);
+
+  const result = createParametricSurface({
+    xExpr,
+    yExpr,
+    zExpr,
+    uMin,
+    uMax,
+    vMin,
+    vMax,
+    segmentsU: segments,
+    segmentsV: segments,
+  });
+
+  mesh = applyTextureToMesh(
+    result.vertices,
+    result.zValues,
+    result.segments,
+    result.zMin,
+    result.zMax
+  );
+
+  scene.add(mesh);
+}
+
+function updateSurface() {
+  if (mesh) scene.remove(mesh);
+  if (currentMode === "xyz") {
+    createSurface();
+  } else if (currentMode === "parametric") {
+    createParamSurface();
+  }
+}
+
+function applyTextureToMesh(vertices, zValues, segments, zMin, zMax) {
+  switch (currentTexture) {
+    case "rainbow":
+      return createRainbowTexture(vertices, zValues, segments, zMin, zMax);
+    case "wire_detailled":
+      return createWireframeTexture(vertices, segments);
+    case "wire_glitch":
+      return createGlitchWireframe(vertices, segments, zMin, zMax);
+    case "wire_gradient":
+      return createColorWireframe(vertices, segments);
+    default:
+      console.warn("Texture inconnue :", currentTexture);
+      return null;
+  }
+}
+function populateXYZPresets() {
+  const select = document.getElementById("presetSelect");
+  FUNCTION_PRESETS.forEach((preset) => {
+    const option = document.createElement("option");
+    option.value = preset.value;
+    option.textContent = preset.name;
+    select.appendChild(option);
+  });
+}
+populateXYZPresets();
+
+function populateParametricPresets() {
+  const select = document.getElementById("presetParamSelect");
+  PARAMETRIC_PRESETS.forEach((preset) => {
+    const option = document.createElement("option");
+    option.value = preset.name;
+    option.textContent = preset.name;
+    select.appendChild(option);
+  });
+}
+populateParametricPresets();
+
+document.getElementById("presetParamSelect").addEventListener("change", (e) => {
+  const selected = PARAMETRIC_PRESETS.find((p) => p.name === e.target.value);
+  if (!selected) return;
+
+  // Mise à jour des champs
+  document.getElementById("paramX").value = selected.x;
+  document.getElementById("paramY").value = selected.y;
+  document.getElementById("paramZ").value = selected.z;
+
+  document.getElementById("uMin").value = selected.uMin;
+  document.getElementById("uMax").value = selected.uMax;
+  document.getElementById("vMin").value = selected.vMin;
+  document.getElementById("vMax").value = selected.vMax;
+
+  // Génération directe
+  currentMode = "parametric";
+  createParamSurface();
 });

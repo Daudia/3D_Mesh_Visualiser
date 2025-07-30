@@ -14,6 +14,7 @@
     />
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script type="module" src="parametric.js"></script>
   </head>
   <body>
     <div id="logo-signature"></div>
@@ -24,6 +25,7 @@
       </div>
 
       <div class="section">
+        <h3>XYZ Plan</h3>
         <label for="functionInput">Function z = f(x, y)</label>
         <div class="function-row">
           <input
@@ -33,143 +35,58 @@
           />
           <button id="updateBtn">Update</button>
         </div>
-
         <div class="inline-row">
           <label for="presetSelect">Sample functions :</label>
           <select id="presetSelect">
             <option value="">-- Pick a function --</option>
-            <option value="1 / ((x * x + 1)) + 1 / ((y * y + 1))">
-              Crête double
-            </option>
-            <option value="Math.sin(x * 2) * Math.cos(y * 2)">
-              Onde sinusoïdale
-            </option>
-            <option value="Math.sin(Math.sqrt(x * x + y * y) * 5)">
-              Onde radiale
-            </option>
-            <option value="Math.sin(x) + Math.sin(y)">Vagues croisées</option>
-            <option value="Math.sin(x * x - y * y)">Onde carrée radiale</option>
-            <option
-              value="Math.sin(10 * Math.atan2(y, x)) * Math.exp(-x * x - y * y)"
-            >
-              Explosion spirale
-            </option>
-            <option value="Math.sin(10 * x) * Math.sin(10 * y)">
-              Pics en grille
-            </option>
-            <option value="Math.sin(x*y) * Math.cos(x + y)">
-              Montagnes fractales
-            </option>
-            <option value="Math.atan2(y, x) * Math.sqrt(x*x + y*y)">
-              Tourbillon polaire
-            </option>
-            <option value="Math.abs(Math.sin(3 * x) + Math.sin(3 * y))">
-              Crêtes dentelées
-            </option>
-            <option value="Math.cos(x + y)">Valons diagonaux</option>
-            <option value="-Math.abs(Math.sin(x) * Math.cos(y))">
-              Fosse sinusoïdale
-            </option>
-            <option value="Math.sin(x * y) * Math.sin(y)">
-              Champ d’interférence
-            </option>
-            <option value="Math.sign(Math.sin(x)) + Math.sign(Math.cos(y))">
-              Onde carrée
-            </option>
-            <option value="-Math.sqrt(x*x + y*y)">Cône inversé</option>
+          </select>
+        </div>
+      </div>
+      <div class="section" id="parametricSection">
+        <h3>Parametric Surface</h3>
+        <div class="function-row">
+          <label>x(u,v)</label>
+          <input
+            type="text"
+            id="paramX"
+            value="(2 + Math.cos(v)) * Math.cos(u)"
+          />
+        </div>
 
-            <option value="Math.cos(Math.sqrt(Math.abs(x * y)))">
-              Réseau radial
-            </option>
-            <option
-              value="Math.atan2(y, x) + Math.sin(3 * Math.sqrt(x*x + y*y))"
-            >
-              Tourbillon perturbé
-            </option>
-            <option value="(x * Math.sin(y) + y * Math.cos(x)) / 2">
-              Dynamique tordue
-            </option>
-            <option
-              value="3*Math.exp(-Math.abs(x*y)) * Math.sin(4*x) * Math.cos(4*y)"
-            >
-              Fleur vibrante
-            </option>
-            <option value="Math.pow(Math.sin(x*x + y*y), 3)">
-              Champs cubique
-            </option>
-            <option value="Math.abs(Math.sin(x * y)) * Math.sign(x - y)">
-              Zébrures diagonales
-            </option>
-            <option value="Math.sin(10 * (x*x - y*y)) / (10 + x*x + y*y)">
-              Lentilles interférentes
-            </option>
+        <div class="function-row">
+          <label>y(u,v)</label>
+          <input
+            type="text"
+            id="paramY"
+            value="(2 + Math.cos(v)) * Math.sin(u)"
+          />
+        </div>
 
-            <option
-              value="Math.sign(x*y) * Math.sin(Math.sqrt(Math.abs(x - y)))"
-            >
-              Onde coupée
-            </option>
-            <option value="Math.atan2(Math.sin(y), Math.cos(x))">
-              Torsion circulaire
-            </option>
-            <option
-              value="Math.sin(Math.sqrt(x*x + y*y)) * Math.cos(Math.atan2(y, x))"
-            >
-              Sillage radial
-            </option>
-            <option
-              value="Math.exp(-Math.pow(x*x + y*y, 0.3)) * Math.sin(6 * Math.sqrt(x*x + y*y))"
-            >
-              Cymatique douce
-            </option>
-            <option value="(Math.atan2(x, y) * Math.sin(x*x + y*y)) / 2">
-              Tourbillon fractal
-            </option>
-            <option value="Math.sin(x + y + Math.sin(x*y))">
-              Motif imbriqué
-            </option>
-            <option value="Math.sin(x) * Math.sin(y) + Math.cos(x + y)">
-              Onde yin-yang
-            </option>
-            <option value="Math.sin(Math.atan2(y, x) + Math.sqrt(x*x + y*y))">
-              Balance ondulée
-            </option>
-            <option value="Math.sin(x*x - y*y) * Math.cos(2 * x * y)">
-              Symétrie inversée
-            </option>
-            <option
-              value="Math.sin(Math.atan2(y, x) * 3) * Math.cos(Math.sqrt(x*x + y*y))"
-            >
-              Entrelac celtique
-            </option>
-            <option
-              value="Math.sin(4 * Math.atan2(y, x)) * Math.sqrt(x*x + y*y)"
-            >
-              Spirale ondulée
-            </option>
-            <option
-              value="Math.sin(2 * Math.atan2(y, x)) + Math.cos(3 * Math.sqrt(x*x + y*y))"
-            >
-              Spirale croisée
-            </option>
-            <option value="Math.atan2(y, x) + Math.sin(x*x + y*y)">
-              Tourbillon perturbé
-            </option>
-            <option
-              value="Math.sin(5 * Math.atan2(y, x)) * Math.sin(2 * Math.sqrt(x*x + y*y))"
-            >
-              Spirale tressée
-            </option>
-            <option
-              value="Math.floor(5 * Math.atan2(y, x)) + Math.sqrt(x*x + y*y)"
-            >
-              Escalier en colimaçon
-            </option>
-            <option
-              value="Math.sin(Math.atan2(y, x) + 4 * Math.log(1 + x*x + y*y))"
-            >
-              Colimaçon logarithmique
-            </option>
+        <div class="function-row">
+          <label>z(u,v)</label>
+          <input type="text" id="paramZ" value="Math.sin(v)" />
+        </div>
+
+        <div class="param-intervals">
+          <label>u ∈ [</label>
+          <input type="number" id="uMin" value="0" step="0.1" />
+          <label>,</label>
+          <input type="number" id="uMax" value="6.3" step="0.1" />
+          <label>],</label>
+
+          <label>v ∈ [</label>
+          <input type="number" id="vMin" value="0" step="0.1" />
+          <label>,</label>
+          <input type="number" id="vMax" value="6.3" step="0.1" />
+          <label>]</label>
+        </div>
+
+        <button id="generateParametricBtn">Update</button>
+
+        <div class="inline-row">
+          <label for="presetSelect">Sample functions :</label>
+          <select id="presetParamSelect">
+            <option value="">-- Pick a function --</option>
           </select>
         </div>
       </div>
@@ -194,12 +111,12 @@
 
       <div class="section">
         <h3>Animation</h3>
-        <label for="rangeSlider">Domain Range [-R, R]</label>
+        <label for="rangeSlider">Domain Range</label>
         <input
           type="range"
           id="rangeSlider"
           min="1"
-          max="30"
+          max="25"
           step="1"
           value="10"
         />
@@ -207,8 +124,8 @@
         <input
           type="range"
           id="rotationSpeed"
-          min="-0.1"
-          max="0.1"
+          min="-0.05"
+          max="0.05"
           step="0.001"
           value="0.01"
         /><br />
@@ -239,7 +156,7 @@
           type="range"
           id="wireSegments"
           min="5"
-          max="100"
+          max="300"
           value="30"
           step="1"
         />
@@ -251,8 +168,10 @@
     <div id="showMenuBtn">Show Menu</div>
 
     <div id="canvasContainer"></div>
+    <script src="presets.js"></script>
 
-    <script src="main.js"></script>
+    <script type="module" src="main.js"></script>
+
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 
     <script>

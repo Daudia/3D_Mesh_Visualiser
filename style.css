@@ -12,11 +12,11 @@ body {
   padding: 0;
   background: #fff;
   color: white;
-  font-family: "Inter", "Segoe UI", sans-serif;
   overflow: hidden;
   height: 100vh;
   width: 100vw;
   position: relative;
+  font-family: "Quicksand", sans-serif;
 }
 
 #canvasContainer {
@@ -71,10 +71,6 @@ h3 {
   font-size: 0.9rem;
   margin-bottom: 6px;
 }
-/* Police par défaut du texte */
-body {
-  font-family: "Quicksand", sans-serif;
-}
 
 /* Titre principal en police spéciale */
 #title h1 {
@@ -90,6 +86,7 @@ body {
 }
 
 input[type="text"],
+input[type="number"],
 select {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--ui-base-color);
@@ -222,6 +219,11 @@ button:hover {
     inset 0 0 10px var(--glow-dark);
 }
 
+#generateParametricBtn {
+  display: flex;
+  align-items: center;
+}
+
 /* Active texture button */
 .textureBtn {
   color: white;
@@ -329,4 +331,32 @@ label {
 #functionInput {
   flex: 1;
   min-width: 0;
+}
+.param-group {
+  margin-bottom: 6px;
+}
+
+.param-group label {
+  display: inline-block;
+  width: 30px;
+}
+
+.param-group input {
+  width: 180px;
+  padding: 4px;
+  font-family: "Quicksand", sans-serif;
+}
+
+.param-intervals {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.param-intervals input {
+  width: 40px;
+  padding: 3px;
+  font-family: "Quicksand", sans-serif;
 }
