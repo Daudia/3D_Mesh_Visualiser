@@ -18,7 +18,7 @@
         <input
           type="text"
           id="functionInput"
-          value="1 / ((x * x + 1)) + 1 / (((x - 2)*(x - 2) + 1))"
+          value="(x * Math.sin(y) + y * Math.cos(x)) / 2"
         />
         <button id="updateBtn">Mettre à jour</button>
       </div>
@@ -40,7 +40,6 @@
           <option value="Math.sin(Math.sqrt(x * x + y * y) * 5)">
             Onde radiale
           </option>
-          <option value="-1 / (1 + x * x + y * y)">Cratère inversé</option>
           <option value="Math.sin(x) + Math.sin(y)">Vagues croisées</option>
           <option value="Math.sin(x * x - y * y)">Onde carrée radiale</option>
           <option
@@ -54,9 +53,6 @@
           <option value="Math.sin(x*y) * Math.cos(x + y)">
             Montagnes fractales
           </option>
-          <option value="Math.exp(-x*x - y*y) * Math.sin(5*(x*x + y*y))">
-            Champignon central
-          </option>
           <option value="Math.atan2(y, x) * Math.sqrt(x*x + y*y)">
             Tourbillon polaire
           </option>
@@ -67,9 +63,6 @@
           <option value="-Math.abs(Math.sin(x) * Math.cos(y))">
             Fosse sinusoïdale
           </option>
-          <option value="-1 / (1 + Math.pow(x*x + y*y, 1.5))">
-            Trou inversé
-          </option>
           <option value="Math.sin(x * y) * Math.sin(y)">
             Champ d’interférence
           </option>
@@ -77,27 +70,18 @@
             Onde carrée
           </option>
           <option value="-Math.sqrt(x*x + y*y)">Cône inversé</option>
-          <option value="Math.sin(5 * Math.sqrt(x*x + y*y)) / (1 + x*x + y*y)">
-            Ondes concentriques amorties
-          </option>
-          <option value="Math.tan(0.5 * x) * Math.sin(y)">
-            Chaîne d’explosions
-          </option>
+
           <option value="Math.cos(Math.sqrt(Math.abs(x * y)))">
             Réseau radial
           </option>
           <option value="Math.atan2(y, x) + Math.sin(3 * Math.sqrt(x*x + y*y))">
             Tourbillon perturbé
           </option>
-          <option value="Math.sin(x + y) * Math.cos(x - y)">
-            Trame diagonale croisée
-          </option>
-          <option value="Math.sin(x*x - y*y)">Selle ondulée</option>
           <option value="(x * Math.sin(y) + y * Math.cos(x)) / 2">
             Dynamique tordue
           </option>
           <option
-            value="Math.exp(-Math.abs(x*y)) * Math.sin(4*x) * Math.cos(4*y)"
+            value="3*Math.exp(-Math.abs(x*y)) * Math.sin(4*x) * Math.cos(4*y)"
           >
             Fleur vibrante
           </option>
@@ -107,15 +91,10 @@
           <option value="Math.abs(Math.sin(x * y)) * Math.sign(x - y)">
             Zébrures diagonales
           </option>
-          <option value="Math.tan(x*y) / (1 + x*x + y*y)">
-            Chaotique rationnel
-          </option>
           <option value="Math.sin(10 * (x*x - y*y)) / (10 + x*x + y*y)">
             Lentilles interférentes
           </option>
-          <option value="Math.sin(x) * Math.tan(y)">
-            Oscillations divergentes
-          </option>
+
           <option value="Math.sign(x*y) * Math.sin(Math.sqrt(Math.abs(x - y)))">
             Onde coupée
           </option>
@@ -126,9 +105,6 @@
             value="Math.sin(Math.sqrt(x*x + y*y)) * Math.cos(Math.atan2(y, x))"
           >
             Sillage radial
-          </option>
-          <option value="Math.abs(Math.sin(3 * x) - Math.cos(3 * y))">
-            Grille chaotique
           </option>
           <option
             value="Math.exp(-Math.pow(x*x + y*y, 0.3)) * Math.sin(6 * Math.sqrt(x*x + y*y))"
@@ -229,6 +205,9 @@
         <button class="textureBtn" data-texture="1">Option 1</button>
         <button class="textureBtn" data-texture="2">Option 2</button>
         <button class="textureBtn" data-texture="3">Option 3</button>
+        <button class="textureBtn" data-texture="4">Option 4</button>
+        <label for="colorPicker">Couleur dominante :</label>
+        <input type="color" id="colorPicker" value="#e27df2" />
       </div>
       <div class="section">
         <label>Maillage wireframe</label>
@@ -267,7 +246,7 @@
             .replace(/\*\*/g, "^")
             .replace(/\*/g, " \\cdot ")
             .replace(/\//g, "\\frac");
-          katex.render("z = ${expression}", latexDisplay, {
+          katex.render(`z = ${expression}`, latexDisplay, {
             throwOnError: false,
           });
         } catch (e) {

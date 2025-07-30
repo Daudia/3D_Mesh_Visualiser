@@ -5,7 +5,7 @@ let rotationSpeed = 0.01;
 let cameraDistance = 10;
 let cameraAngleX = 0; // angle horizontal (azimut)
 let cameraAngleY = 30 * (Math.PI / 180); // angle vertical (élévation) en radians
-let currentTexture = "wire_white"; // texture par défaut
+let currentTexture = "wire_overlay"; // texture par défaut
 let wireSegments = 30;
 let heightScale = 1; // Échelle verticale
 
@@ -55,7 +55,7 @@ function init() {
 function createSurface() {
   const expr = document.getElementById("functionInput").value;
 
-  const segments = 100;
+  const segments = currentTexture.includes("wire") ? wireSegments : 100;
   const xRange = 5;
   const yRange = 5;
 
@@ -93,7 +93,11 @@ function createSurface() {
   } else if (currentTexture === "wire_white") {
     createWireframeTexture(vertices, segments);
   } else if (currentTexture === "wire_color") {
+    createGlitchWireframe(vertices, zValues, segments, zMin, zMax);
+  } else if (currentTexture === "wire_overlay") {
     createColorWireframe(vertices, zValues, segments, zMin, zMax);
+  } else {
+    console.warn("Texture inconnue :", currentTexture);
   }
 }
 
@@ -217,7 +221,7 @@ function createWireframeTexture(vertices, segments) {
   scene.add(mesh);
 }
 
-function createColorWireframe(vertices, zValues, segments, zMin, zMax) {
+function createGlitchWireframe(vertices, zValues, segments, zMin, zMax) {
   const geometry = new THREE.BufferGeometry();
 
   const indices = [];
@@ -262,6 +266,77 @@ function createColorWireframe(vertices, zValues, segments, zMin, zMax) {
   scene.add(mesh);
 }
 
+function createColorWireframe(vertices, zValues, segments, zMin, zMax) {
+  const linePositions = [];
+  const lineColors = [];
+
+  // Récupère la couleur choisie par l'utilisateur
+  const baseColorHex = document.getElementById("colorPicker").value;
+  const baseColor = new THREE.Color(baseColorHex);
+  const hsl = {};
+  baseColor.getHSL(hsl);
+
+  // Génère les lignes horizontales
+  for (let i = 0; i < segments; i++) {
+    for (let j = 0; j < segments - 1; j++) {
+      const idx1 = i * segments + j;
+      const idx2 = i * segments + j + 1;
+      addLine(vertices, idx1, idx2, hsl);
+    }
+  }
+
+  // Génère les lignes verticales
+  for (let j = 0; j < segments; j++) {
+    for (let i = 0; i < segments - 1; i++) {
+      const idx1 = i * segments + j;
+      const idx2 = (i + 1) * segments + j;
+      addLine(vertices, idx1, idx2, hsl);
+    }
+  }
+
+  function addLine(verts, i1, i2, hslBase) {
+    linePositions.push(
+      verts[i1 * 3],
+      verts[i1 * 3 + 1],
+      verts[i1 * 3 + 2],
+      verts[i2 * 3],
+      verts[i2 * 3 + 1],
+      verts[i2 * 3 + 2]
+    );
+
+    for (let i = 0; i < 2; i++) {
+      const variation = (Math.random() - 0.5) * 0.15;
+      const l = THREE.MathUtils.clamp(
+        hslBase.l + (Math.random() - 0.5) * 0.2,
+        0,
+        1
+      );
+      const color = new THREE.Color().setHSL(
+        (hslBase.h + variation) % 1.0,
+        hslBase.s,
+        l
+      );
+      lineColors.push(color.r, color.g, color.b);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(linePositions, 3)
+  );
+  geometry.setAttribute(
+    "color",
+    new THREE.Float32BufferAttribute(lineColors, 3)
+  );
+
+  const material = new THREE.LineBasicMaterial({ vertexColors: true });
+
+  if (mesh) scene.remove(mesh);
+  mesh = new THREE.LineSegments(geometry, material);
+  scene.add(mesh);
+}
+
 document.querySelectorAll(".textureBtn").forEach((btn) => {
   btn.addEventListener("click", () => {
     document
@@ -273,6 +348,7 @@ document.querySelectorAll(".textureBtn").forEach((btn) => {
     if (texture === "1") currentTexture = "rainbow";
     if (texture === "2") currentTexture = "wire_white";
     if (texture === "3") currentTexture = "wire_color";
+    if (texture === "4") currentTexture = "wire_overlay";
 
     if (mesh) scene.remove(mesh); // ⬅️ important pour éviter l'empilement
     createSurface();
