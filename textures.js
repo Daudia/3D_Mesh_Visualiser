@@ -1,3 +1,5 @@
+import * as THREE from "three";
+
 let useColorVariation = true;
 export let animatedMaterial = null;
 export let animatedGeometry = null;
@@ -9,29 +11,6 @@ export function setUseColorVariation(value) {
 function createPlainColorMesh(vertices, zValues, segments, zMin, zMax) {
   const geometry = new THREE.BufferGeometry();
 
-  const colors = [];
-  const baseColorHex = document.getElementById("colorPicker").value;
-  const baseColor = new THREE.Color(baseColorHex);
-  const hsl = {};
-  baseColor.getHSL(hsl);
-
-  for (let i = 0; i < zValues.length; i++) {
-    const z = zValues[i];
-    const t = (z - zMin) / (zMax - zMin); // Normalisation 0 → 1
-
-    let h = hsl.h;
-    let s = hsl.s;
-    let l = THREE.MathUtils.clamp(hsl.l * (0.5 + 0.5 * t), 0, 1); // dégradé en luminosité
-
-    if (useColorVariation) {
-      h = (h + (Math.random() - 0.5) * 0.05 + 1) % 1;
-      l = THREE.MathUtils.clamp(l + (Math.random() - 0.5) * 0.1, 0, 1);
-    }
-
-    const color = new THREE.Color().setHSL(h, s, l);
-    colors.push(color.r, color.g, color.b);
-  }
-
   const indices = [];
   for (let i = 0; i < segments - 1; i++) {
     for (let j = 0; j < segments - 1; j++) {
@@ -41,6 +20,19 @@ function createPlainColorMesh(vertices, zValues, segments, zMin, zMax) {
       const d = c + 1;
       indices.push(a, b, d, a, d, c);
     }
+  }
+
+  const baseColorHex = document.getElementById("colorPicker").value;
+  const baseColor = new THREE.Color(baseColorHex);
+  const hsl = {};
+  baseColor.getHSL(hsl);
+
+  const colors = [];
+  for (let i = 0; i < zValues.length; i++) {
+    const t = (zValues[i] - zMin) / (zMax - zMin);
+    const lightness = THREE.MathUtils.clamp(hsl.l + (t - 0.5) * 0.4, 0, 1);
+    const color = new THREE.Color().setHSL(hsl.h, hsl.s, lightness);
+    colors.push(color.r, color.g, color.b);
   }
 
   geometry.setAttribute(

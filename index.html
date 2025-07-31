@@ -12,7 +12,6 @@
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Quicksand:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
   </head>
   <body>
     <div id="logo-signature"></div>
@@ -41,6 +40,29 @@
             <option value="">-- Pick a function --</option>
           </select>
         </div>
+        <div class="function-row">
+          <button id="saveXYZPresetBtn">Save Preset</button>
+          <select id="userXYZPresets">
+            <option value="">-- Your XYZ Presets --</option>
+          </select>
+        </div>
+        <div class="function-row">
+          <label>
+            <input type="checkbox" id="useTime" />
+            Use Time Variable (t)
+          </label>
+          <button id="resetTimeBtn">Reset Time</button>
+        </div>
+        <label>Time step</label>
+
+        <input
+          type="range"
+          id="timeStep"
+          min="-0.1"
+          max="0.1"
+          value="0.01"
+          step="0.01"
+        />
       </div>
       <div class="section" id="parametricSection">
         <h3>Parametric Surface</h3>
@@ -82,6 +104,12 @@
           <label for="presetSelect">Sample functions :</label>
           <select id="presetParamSelect">
             <option value="">-- Pick a function --</option>
+          </select>
+        </div>
+        <div class="function-row">
+          <button id="saveParamPresetBtn">Save Preset</button>
+          <select id="userParamPresets">
+            <option value="">-- Your Parametric Presets --</option>
           </select>
         </div>
       </div>
@@ -184,7 +212,6 @@
     </div>
     <div id="showMenuBtn">Show Menu</div>
     <div id="canvasContainer"></div>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script type="module" src="main.js"></script>
     <script>
       fetch("logo_line.svg")

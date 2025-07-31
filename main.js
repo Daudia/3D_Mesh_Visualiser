@@ -1,4 +1,6 @@
 // main.js
+import * as THREE from "three";
+
 import { createParametricSurface } from "./parametric.js";
 import { FUNCTION_PRESETS, PARAMETRIC_PRESETS } from "./presets.js";
 import {
@@ -38,6 +40,14 @@ let animateXY = false;
 let moveOnX = true;
 let moveOnY = false;
 let moveSpeed = 0;
+let useTime = false;
+let time = 0;
+let timeStep = 0.01;
+let expressionError = false;
+let compiledFunc1 = null;
+let compiledFunc2 = null;
+const USER_XYZ_KEY = "user_xyz_presets";
+const USER_PARAM_KEY = "user_param_presets";
 
 const textureMap = {
   1: "wire_gradient",
@@ -82,6 +92,12 @@ const DOM = {
   camY: document.getElementById("camY"),
   zoomControl: document.getElementById("zoomControl"),
   rootStyle: document.documentElement.style,
+  timeCheckbox: document.getElementById("useTime"),
+  timeStep: document.getElementById("timeStep"),
+  resetTimeBtn: document.getElementById("resetTimeBtn"),
+  saveXYZPresetBtn: document.getElementById("saveXYZPresetBtn"),
+  userXYZPresets: document.getElementById("userXYZPresets"),
+  saveParamPresetBtn: document.getElementById("saveParamPresetBtn"),
 };
 
 initScene({
@@ -106,9 +122,14 @@ initScene({
       animatedGeometry.attributes.color.needsUpdate = true;
     }
 
-    if (animateXY && currentMode === "xyz") {
+    if (animateXY && currentMode === "xyz" && !expressionError) {
       if (moveOnX) offsetX += moveSpeed * 0.01;
       if (moveOnY) offsetY += moveSpeed * 0.01;
+      regenerateSurface();
+    }
+
+    if (useTime && currentMode === "xyz" && !expressionError) {
+      time += timeStep;
       regenerateSurface();
     }
   },
@@ -130,23 +151,27 @@ function initializeApp() {
   updateThemeColors();
   populateXYZPresets();
   populateParametricPresets();
+  compiledFunc1 = new Function(
+    "x",
+    "y",
+    "t",
+    `return ${DOM.functionInput.value};`
+  );
+  compiledFunc2 = new Function("x", "y", "t", `return 0;`);
   initXYZSurfaceIfNeeded();
 }
 
+function loadUserPresets(key) {
+  const raw = localStorage.getItem(key);
+  return raw ? JSON.parse(raw) : [];
+}
+
+function saveUserPresets(key, presets) {
+  localStorage.setItem(key, JSON.stringify(presets));
+}
+
 function generateXYZSurface() {
-  if (currentMode !== "xyz") return; // <-- ne fait rien si on n'est pas en mode xyz
-
-  const expr1 = DOM.functionInput.value;
-  const expr2 = DOM.functionInput2 ? DOM.functionInput2.value : expr1; // fallback
-
-  let func1, func2;
-  try {
-    func1 = new Function("x", "y", `return ${expr1};`);
-    func2 = new Function("x", "y", `return ${expr2};`);
-  } catch (e) {
-    alert("Erreur dans une expression : " + e.message);
-    return;
-  }
+  if (currentMode !== "xyz" || !compiledFunc1 || !compiledFunc2) return;
 
   const segments = wireSegments;
   const xRange = domainRange;
@@ -160,8 +185,8 @@ function generateXYZSurface() {
       const x = (i / (segments - 1)) * xRange * 2 - xRange;
       const y = (j / (segments - 1)) * yRange * 2 - yRange;
 
-      const z1 = func1(x + offsetX, y + offsetY);
-      const z2 = func2(x + offsetX, y + offsetY);
+      const z1 = compiledFunc1(x + offsetX, y + offsetY, useTime ? time : 0);
+      const z2 = compiledFunc2(x + offsetX, y + offsetY, useTime ? time : 0);
       const z = (1 - morphT) * z1 + morphT * z2;
       vertices.push(x, z, y);
       zValues.push(z);
@@ -174,7 +199,6 @@ function generateXYZSurface() {
   const previousRotation = mesh ? mesh.rotation.clone() : null;
   if (mesh) scene.remove(mesh);
 
-  // Appel texture → retourne un mesh
   mesh = applyTextureToMesh(
     vertices,
     zValues,
@@ -310,6 +334,7 @@ function setupUIEvents() {
   setupHideUIControls();
   setupAnimationControls();
   setupFunctionsControls();
+  setupSaveControls();
 }
 
 function setupCameraControls() {
@@ -348,6 +373,8 @@ function setupMovementControls() {
   DOM.resetOffsetBtn.addEventListener("click", () => {
     offsetX = 0;
     offsetY = 0;
+    animateXY = false;
+    DOM.moveToggle.checked = false;
     regenerateSurface();
   });
 }
@@ -427,9 +454,44 @@ function setupAnimationControls() {
 
 function setupFunctionsControls() {
   DOM.updateXYZBtn.addEventListener("click", () => {
-    currentMode = "xyz";
+    try {
+      compiledFunc1 = new Function(
+        "x",
+        "y",
+        "t",
+        `return ${DOM.functionInput.value};`
+      );
+      compiledFunc2 = new Function(
+        "x",
+        "y",
+        "t",
+        `return ${DOM.functionInput2.value || DOM.functionInput.value};`
+      );
+      expressionError = false;
+
+      currentMode = "xyz";
+      regenerateSurface();
+    } catch (e) {
+      expressionError = true;
+      alert("Erreur dans une des fonctions : " + e.message);
+    }
+  });
+
+  DOM.timeCheckbox.addEventListener("change", (e) => {
+    useTime = e.target.checked;
+  });
+
+  DOM.timeStep.addEventListener("input", (e) => {
+    timeStep = parseFloat(e.target.value);
+  });
+
+  DOM.resetTimeBtn.addEventListener("click", () => {
+    time = 0;
+    useTime = false;
+    DOM.timeCheckbox.checked = false;
     regenerateSurface();
   });
+
   DOM.presetSelect.addEventListener("change", (e) => {
     const expr = e.target.value;
     offsetX = 0;
@@ -438,7 +500,15 @@ function setupFunctionsControls() {
       currentMode = "xyz";
 
       DOM.functionInput.value = expr;
-      generateXYZSurface();
+
+      try {
+        compiledFunc1 = new Function("x", "y", "t", `return ${expr};`);
+        compiledFunc2 = new Function("x", "y", "t", `return 0;`);
+        expressionError = false;
+        generateXYZSurface();
+      } catch (err) {
+        expressionError = true;
+      }
     }
   });
 
@@ -467,5 +537,77 @@ function setupFunctionsControls() {
 
     currentMode = "parametric";
     generateParametricSurface();
+  });
+}
+
+function setupSaveControls() {
+  DOM.saveXYZPresetBtn = document.getElementById("saveXYZPresetBtn");
+  DOM.userXYZPresets = document.getElementById("userXYZPresets");
+
+  DOM.saveParamPresetBtn = document.getElementById("saveParamPresetBtn");
+  DOM.userParamPresets = document.getElementById("userParamPresets");
+
+  DOM.saveXYZPresetBtn.addEventListener("click", () => {
+    const name = prompt("Preset name:");
+    if (!name) return;
+
+    const preset = {
+      name,
+      value1: DOM.functionInput.value,
+      value2: DOM.functionInput2.value,
+    };
+
+    const existing = loadUserPresets(USER_XYZ_KEY);
+    existing.push(preset);
+    saveUserPresets(USER_XYZ_KEY, existing);
+    populateUserXYZPresets();
+  });
+
+  DOM.userXYZPresets.addEventListener("change", (e) => {
+    const selected = loadUserPresets(USER_XYZ_KEY).find(
+      (p) => p.name === e.target.value
+    );
+    if (!selected) return;
+
+    DOM.functionInput.value = selected.value1;
+    DOM.functionInput2.value = selected.value2;
+    DOM.updateXYZBtn.click();
+  });
+  DOM.saveParamPresetBtn.addEventListener("click", () => {
+    const name = prompt("Preset name:");
+    if (!name) return;
+
+    const preset = {
+      name,
+      x: DOM.paramX.value,
+      y: DOM.paramY.value,
+      z: DOM.paramZ.value,
+      uMin: DOM.uMin.value,
+      uMax: DOM.uMax.value,
+      vMin: DOM.vMin.value,
+      vMax: DOM.vMax.value,
+    };
+
+    const existing = loadUserPresets(USER_PARAM_KEY);
+    existing.push(preset);
+    saveUserPresets(USER_PARAM_KEY, existing);
+    populateUserParamPresets();
+  });
+
+  DOM.userParamPresets.addEventListener("change", (e) => {
+    const selected = loadUserPresets(USER_PARAM_KEY).find(
+      (p) => p.name === e.target.value
+    );
+    if (!selected) return;
+
+    DOM.paramX.value = selected.x;
+    DOM.paramY.value = selected.y;
+    DOM.paramZ.value = selected.z;
+    DOM.uMin.value = selected.uMin;
+    DOM.uMax.value = selected.uMax;
+    DOM.vMin.value = selected.vMin;
+    DOM.vMax.value = selected.vMax;
+
+    DOM.updateParamBtn.click();
   });
 }

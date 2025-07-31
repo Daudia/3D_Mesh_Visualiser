@@ -1,4 +1,4 @@
-// scene.js
+import * as THREE from "three";
 
 export let scene, camera, renderer;
 let cameraDistance = 20;
