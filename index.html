@@ -4,25 +4,22 @@
     <meta charset="UTF-8" />
     <title>3D Mesher Visualiser</title>
     <link rel="stylesheet" href="style.css" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap"
-      rel="stylesheet"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="3D Mesher Visualiser" />
+    <meta name="keywords" content="3D, Mesher, Visualiser, WebGL, Three.js" />
+    <meta name="author" content="DaudiaD" />
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Quicksand:wght@400;500&display=swap"
       rel="stylesheet"
     />
-
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
   </head>
   <body>
     <div id="logo-signature"></div>
-
     <div id="ui">
       <div id="title">
         <h1>3D Mesher Visualiser</h1>
       </div>
-
       <div class="section">
         <h3>XYZ Plan</h3>
         <div class="function-row">
@@ -38,8 +35,7 @@
           <input type="text" id="functionInput2" value="Math.sin(x*y)" />
         </div>
         <button id="updateXYZBtn">Update</button>
-
-        <div class="inline-row">
+        <div class="function-row">
           <label for="presetSelect">Sample functions :</label>
           <select id="presetSelect">
             <option value="">-- Pick a function --</option>
@@ -56,7 +52,6 @@
             value="(2 + Math.cos(v)) * Math.cos(u)"
           />
         </div>
-
         <div class="function-row">
           <label>y(u,v)</label>
           <input
@@ -65,12 +60,10 @@
             value="(2 + Math.cos(v)) * Math.sin(u)"
           />
         </div>
-
         <div class="function-row">
           <label>z(u,v)</label>
           <input type="text" id="paramZ" value="Math.sin(v)" />
         </div>
-
         <div class="param-intervals">
           <label>u ∈ [</label>
           <input type="number" id="uMin" value="0" step="0.1" />
@@ -84,35 +77,23 @@
           <input type="number" id="vMax" value="6.3" step="0.1" />
           <label>]</label>
         </div>
-
         <button id="updateParamBtn">Update</button>
-
-        <div class="inline-row">
+        <div class="function-row">
           <label for="presetSelect">Sample functions :</label>
           <select id="presetParamSelect">
             <option value="">-- Pick a function --</option>
           </select>
         </div>
       </div>
-
       <div class="section">
         <h3>Camera controls</h3>
         <label>Distance</label>
-        <input
-          type="range"
-          id="zoomControl"
-          min="5"
-          max="80"
-          value="20"
-        /><br />
-
+        <input type="range" id="zoomControl" min="5" max="80" value="20" />
         <label>X Angle</label>
         <input type="range" id="camX" min="-180" max="180" value="0" /><br />
-
         <label>Y angle</label>
         <input type="range" id="camY" min="-90" max="90" value="30" />
       </div>
-
       <div class="section">
         <h3>Animation</h3>
         <label for="rangeSlider">Domain Range (Only XYZ)</label>
@@ -128,7 +109,6 @@
           >Morphing (Only XYZ) - Transition :
           <span id="morphValue">0</span></label
         >
-
         <input
           type="range"
           id="morphSlider"
@@ -137,7 +117,6 @@
           step="0.01"
           value="0"
         />
-
         <label>Rotation Speed</label>
         <input
           type="range"
@@ -146,8 +125,16 @@
           max="0.05"
           step="0.001"
           value="0"
-        /><br />
-
+        />
+        <label>Mesh Segments</label>
+        <input
+          type="range"
+          id="wireSegments"
+          min="5"
+          max="300"
+          value="30"
+          step="1"
+        />
         <h3>Plan motion</h3>
         <div class="inline-row">
           <label>
@@ -174,7 +161,6 @@
         />
         <button id="resetOffsetBtn">Reset Offset</button>
       </div>
-
       <div class="section">
         <h3>Texture</h3>
         <div class="texture-group">
@@ -183,41 +169,23 @@
           <button class="textureBtn" data-texture="3">Glitch</button>
           <button class="textureBtn" data-texture="4">Rainbow</button>
           <button class="textureBtn" data-texture="5">Animated Rainbow</button>
+          <button class="textureBtn" data-texture="6">Plain Color</button>
         </div>
-
         <div class="inline-row">
           <label for="colorPicker">Color Selector :</label>
           <input type="color" id="colorPicker" value="#e27df2" />
         </div>
-
         <label>
           <input type="checkbox" id="colorVariationToggle" checked />
           Gradient Color Variation
         </label>
       </div>
-      <div class="section">
-        <label>Mesh Segments</label>
-        <input
-          type="range"
-          id="wireSegments"
-          min="5"
-          max="300"
-          value="30"
-          step="1"
-        />
-      </div>
-
       <button id="toggleMenuBtn">Hide Menu</button>
     </div>
-
     <div id="showMenuBtn">Show Menu</div>
-
     <div id="canvasContainer"></div>
-
-    <script type="module" src="main.js"></script>
-
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-
+    <script type="module" src="main.js"></script>
     <script>
       fetch("logo_line.svg")
         .then((res) => res.text())
@@ -226,14 +194,13 @@
           const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
           const svgEl = svgDoc.querySelector("svg");
 
-          // Pour que le stroke suive la couleur choisie
           svgEl.setAttribute("stroke", "currentColor");
-          svgEl.setAttribute("fill", "none"); // optionnel
+          svgEl.setAttribute("fill", "none");
           svgEl.setAttribute("id", "logo-svg");
 
           document.getElementById("logo-signature").appendChild(svgEl);
 
-          updateLogoColor(); // initialise couleur
+          updateLogoColor();
         });
 
       function updateLogoColor() {

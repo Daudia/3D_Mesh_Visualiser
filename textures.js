@@ -1,9 +1,62 @@
 let useColorVariation = true;
-export let animatedMaterial = null; // global
+export let animatedMaterial = null;
 export let animatedGeometry = null;
 
 export function setUseColorVariation(value) {
   useColorVariation = value;
+}
+
+function createPlainColorMesh(vertices, zValues, segments, zMin, zMax) {
+  const geometry = new THREE.BufferGeometry();
+
+  const colors = [];
+  const baseColorHex = document.getElementById("colorPicker").value;
+  const baseColor = new THREE.Color(baseColorHex);
+  const hsl = {};
+  baseColor.getHSL(hsl);
+
+  for (let i = 0; i < zValues.length; i++) {
+    const z = zValues[i];
+    const t = (z - zMin) / (zMax - zMin); // Normalisation 0 → 1
+
+    let h = hsl.h;
+    let s = hsl.s;
+    let l = THREE.MathUtils.clamp(hsl.l * (0.5 + 0.5 * t), 0, 1); // dégradé en luminosité
+
+    if (useColorVariation) {
+      h = (h + (Math.random() - 0.5) * 0.05 + 1) % 1;
+      l = THREE.MathUtils.clamp(l + (Math.random() - 0.5) * 0.1, 0, 1);
+    }
+
+    const color = new THREE.Color().setHSL(h, s, l);
+    colors.push(color.r, color.g, color.b);
+  }
+
+  const indices = [];
+  for (let i = 0; i < segments - 1; i++) {
+    for (let j = 0; j < segments - 1; j++) {
+      const a = i * segments + j;
+      const b = a + 1;
+      const c = a + segments;
+      const d = c + 1;
+      indices.push(a, b, d, a, d, c);
+    }
+  }
+
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(vertices, 3)
+  );
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  const material = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+  });
+
+  return new THREE.Mesh(geometry, material);
 }
 
 function createRainbowTexture(vertices, zValues, segments, zMin, zMax) {
@@ -249,6 +302,8 @@ export function applyTextureToMesh(
   currentTexture
 ) {
   switch (currentTexture) {
+    case "plain_color":
+      return createPlainColorMesh(vertices, zValues, segments, zMin, zMax);
     case "rainbow":
       return createRainbowTexture(vertices, zValues, segments, zMin, zMax);
     case "wire_detailled":

@@ -45,6 +45,7 @@ const textureMap = {
   3: "wire_glitch",
   4: "rainbow",
   5: "animated_rainbow",
+  6: "plain_color",
 };
 
 const DOM = {
@@ -362,7 +363,7 @@ function setupTextureControls() {
       const texture = btn.dataset.texture;
       currentTexture = textureMap[texture] || currentTexture;
 
-      if (mesh) scene.remove(mesh); // ⬅️ important pour éviter l'empilement
+      if (mesh) scene.remove(mesh);
       regenerateSurface();
     });
   });
