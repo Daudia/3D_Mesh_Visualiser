@@ -9,12 +9,7 @@ import {
   setUseColorVariation,
 } from "./textures.js";
 
-import {
-  initScene,
-  scene,
-  setCameraDistance,
-  setCameraAngles,
-} from "./scene.js";
+import { initScene, scene } from "./scene.js";
 
 import {
   darkenHex,
@@ -26,8 +21,6 @@ import {
 let mesh;
 let rotationSpeed = 0;
 
-let cameraAngleX = 0;
-let cameraAngleY = 30 * (Math.PI / 180);
 let currentTexture = "wire_gradient";
 let wireSegments = 30;
 let domainRange = 5;
@@ -88,9 +81,6 @@ const DOM = {
   updateXYZBtn: document.getElementById("updateXYZBtn"),
   updateParamBtn: document.getElementById("updateParamBtn"),
   resetOffsetBtn: document.getElementById("resetOffsetBtn"),
-  camX: document.getElementById("camX"),
-  camY: document.getElementById("camY"),
-  zoomControl: document.getElementById("zoomControl"),
   rootStyle: document.documentElement.style,
   timeCheckbox: document.getElementById("useTime"),
   timeStep: document.getElementById("timeStep"),
@@ -328,29 +318,12 @@ function populateParametricPresets() {
 }
 
 function setupUIEvents() {
-  setupCameraControls();
   setupMovementControls();
   setupTextureControls();
   setupHideUIControls();
   setupAnimationControls();
   setupFunctionsControls();
   setupSaveControls();
-}
-
-function setupCameraControls() {
-  DOM.zoomControl.addEventListener("input", (e) => {
-    setCameraDistance(parseFloat(e.target.value));
-  });
-
-  DOM.camX.addEventListener("input", (e) => {
-    cameraAngleX = parseFloat(e.target.value) * (Math.PI / 180);
-    setCameraAngles(cameraAngleX, cameraAngleY);
-  });
-
-  DOM.camY.addEventListener("input", (e) => {
-    cameraAngleY = parseFloat(e.target.value) * (Math.PI / 180);
-    setCameraAngles(cameraAngleX, cameraAngleY);
-  });
 }
 
 function setupMovementControls() {

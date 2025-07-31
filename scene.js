@@ -1,9 +1,11 @@
 import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 export let scene, camera, renderer;
 let cameraDistance = 20;
 let cameraAngleX = 0;
 let cameraAngleY = 30 * (Math.PI / 180);
+let controls;
 
 export function initScene({ onRender }) {
   scene = new THREE.Scene();
@@ -16,7 +18,6 @@ export function initScene({ onRender }) {
     100
   );
   camera.position.set(0, 5, 10);
-  camera.lookAt(0, 0, 0);
 
   // Lumière
   const light = new THREE.PointLight(0xffffff, 1);
@@ -28,6 +29,17 @@ export function initScene({ onRender }) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x111111, 1);
   document.getElementById("canvasContainer").appendChild(renderer.domElement);
+
+  // Contrôles souris
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; // pour une rotation plus fluide
+  controls.dampingFactor = 0.05;
+
+  controls.enablePan = true; // clic droit pour translater
+  controls.enableZoom = true; // molette pour zoomer
+  controls.rotateSpeed = 0.5;
+  controls.zoomSpeed = 0.5;
+  controls.panSpeed = 0.5;
 
   window.addEventListener("resize", updateSceneSize);
 
@@ -46,24 +58,9 @@ function animateLoop(onRender) {
 
   if (onRender) onRender();
 
-  if (camera && renderer && scene) {
-    camera.position.x =
-      cameraDistance * Math.sin(cameraAngleX) * Math.cos(cameraAngleY);
-    camera.position.y = cameraDistance * Math.sin(cameraAngleY);
-    camera.position.z =
-      cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
-    camera.lookAt(0, 0, 0);
+  if (controls) controls.update(); // important !
 
+  if (camera && renderer && scene) {
     renderer.render(scene, camera);
   }
-}
-
-// Expose setters
-export function setCameraDistance(d) {
-  cameraDistance = d;
-}
-
-export function setCameraAngles(angleX, angleY) {
-  cameraAngleX = angleX;
-  cameraAngleY = angleY;
 }
