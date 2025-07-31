@@ -1,20 +1,36 @@
 // main.js
-import { createParametricSurface, parametricPresets } from "./parametric.js";
+import { createParametricSurface } from "./parametric.js";
 import { FUNCTION_PRESETS, PARAMETRIC_PRESETS } from "./presets.js";
+import {
+  applyTextureToMesh,
+  animatedGeometry,
+  setUseColorVariation,
+} from "./textures.js";
 
-let scene, camera, renderer, mesh;
+import {
+  initScene,
+  scene,
+  setCameraDistance,
+  setCameraAngles,
+} from "./scene.js";
+
+import {
+  darkenHex,
+  lightenHex,
+  hexToHSL,
+  hslToHex,
+} from "./color-manipulation.js";
+
+let mesh;
 let rotationSpeed = 0;
-let cameraDistance = 20;
-let cameraAngleX = 0; // angle horizontal (azimut)
-let cameraAngleY = 30 * (Math.PI / 180); // angle vertical (élévation) en radians
-let currentTexture = "wire_gradient"; // texture par défaut
+
+let cameraAngleX = 0;
+let cameraAngleY = 30 * (Math.PI / 180);
+let currentTexture = "wire_gradient";
 let wireSegments = 30;
-let useColorVariation = true;
-let domainRange = 5; // valeur initiale : -10 à +10
-let currentMode = "xyz"; // ou "parametric"
+let domainRange = 5;
+let currentMode = "xyz";
 let morphT = 0;
-let animatedMaterial; // global
-let animatedGeometry; // global
 let animatedMeshTime = 0;
 let offsetX = 0;
 let offsetY = 0;
@@ -23,60 +39,104 @@ let moveOnX = true;
 let moveOnY = false;
 let moveSpeed = 0;
 
-init();
-animate();
+const textureMap = {
+  1: "wire_gradient",
+  2: "wire_detailled",
+  3: "wire_glitch",
+  4: "rainbow",
+  5: "animated_rainbow",
+};
 
-function init() {
-  scene = new THREE.Scene();
+const DOM = {
+  uiPanel: document.getElementById("ui"),
+  toggleBtn: document.getElementById("toggleMenuBtn"),
+  showBtn: document.getElementById("showMenuBtn"),
+  colorPicker: document.getElementById("colorPicker"),
+  morphValue: document.getElementById("morphValue"),
+  functionInput: document.getElementById("functionInput"),
+  functionInput2: document.getElementById("functionInput2"),
+  paramX: document.getElementById("paramX"),
+  paramY: document.getElementById("paramY"),
+  paramZ: document.getElementById("paramZ"),
+  uMin: document.getElementById("uMin"),
+  uMax: document.getElementById("uMax"),
+  vMin: document.getElementById("vMin"),
+  vMax: document.getElementById("vMax"),
+  presetSelect: document.getElementById("presetSelect"),
+  presetParamSelect: document.getElementById("presetParamSelect"),
+  moveToggle: document.getElementById("moveToggle"),
+  moveX: document.getElementById("moveX"),
+  moveY: document.getElementById("moveY"),
+  moveSpeed: document.getElementById("moveSpeed"),
+  rangeSlider: document.getElementById("rangeSlider"),
+  wireSegments: document.getElementById("wireSegments"),
+  rotationSpeed: document.getElementById("rotationSpeed"),
+  colorVariationToggle: document.getElementById("colorVariationToggle"),
+  canvasContainer: document.getElementById("canvasContainer"),
+  morphSlider: document.getElementById("morphSlider"),
+  updateXYZBtn: document.getElementById("updateXYZBtn"),
+  updateParamBtn: document.getElementById("updateParamBtn"),
+  resetOffsetBtn: document.getElementById("resetOffsetBtn"),
+  camX: document.getElementById("camX"),
+  camY: document.getElementById("camY"),
+  zoomControl: document.getElementById("zoomControl"),
+  rootStyle: document.documentElement.style,
+};
 
-  // Caméra
-  camera = new THREE.PerspectiveCamera(
-    45,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    100
-  );
-  camera.position.set(0, 5, 10);
-  camera.lookAt(-0, 0, -0);
+initScene({
+  onRender: () => {
+    if (mesh) mesh.rotation.y += rotationSpeed;
 
-  // Lumière
-  const light = new THREE.PointLight(0xffffff, 1);
-  light.position.set(10, 10, 10);
-  scene.add(light);
+    if (currentTexture === "animated_rainbow" && animatedGeometry) {
+      animatedMeshTime += 0.01;
 
-  // Rendu
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setClearColor(0x111111, 1); // couleur de fond
-  document.getElementById("canvasContainer").appendChild(renderer.domElement);
+      const colors = animatedGeometry.attributes.color.array;
+      const z = animatedGeometry.attributes.position.array;
 
-  // Première surface
-  createSurface();
+      for (let i = 0; i < colors.length / 3; i++) {
+        const zi = z[i * 3 + 1];
+        const t = 0.5 + 0.5 * Math.sin(zi * 2 + animatedMeshTime);
+        const color = new THREE.Color().setHSL(t, 1.0, 0.5);
+        colors[i * 3 + 0] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+      }
 
-  // Réaction au bouton
-  document.getElementById("updateBtn").addEventListener("click", () => {
-    currentMode = "xyz"; // <-- Ajout
-    offsetX = 0;
-    offsetY = 0;
+      animatedGeometry.attributes.color.needsUpdate = true;
+    }
 
-    if (mesh) scene.remove(mesh);
-    createSurface();
-  });
+    if (animateXY && currentMode === "xyz") {
+      if (moveOnX) offsetX += moveSpeed * 0.01;
+      if (moveOnY) offsetY += moveSpeed * 0.01;
+      regenerateSurface();
+    }
+  },
+});
 
-  window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+initializeApp();
+setupUIEvents();
+
+function initXYZSurfaceIfNeeded() {
+  const input = DOM.functionInput;
+  if (input && input.value.trim()) {
+    currentMode = "xyz";
+    generateXYZSurface();
+  }
 }
 
-function createSurface() {
+function initializeApp() {
+  updateGlowColor();
+  updateThemeColors();
+  populateXYZPresets();
+  populateParametricPresets();
+  initXYZSurfaceIfNeeded();
+}
+
+function generateXYZSurface() {
   if (currentMode !== "xyz") return; // <-- ne fait rien si on n'est pas en mode xyz
 
-  const expr1 = document.getElementById("functionInput").value;
-  const expr2 = document.getElementById("functionInput2")
-    ? document.getElementById("functionInput2").value
-    : expr1; // fallback
+  const expr1 = DOM.functionInput.value;
+  const expr2 = DOM.functionInput2 ? DOM.functionInput2.value : expr1; // fallback
 
   let func1, func2;
   try {
@@ -114,7 +174,14 @@ function createSurface() {
   if (mesh) scene.remove(mesh);
 
   // Appel texture → retourne un mesh
-  mesh = applyTextureToMesh(vertices, zValues, segments, zMin, zMax);
+  mesh = applyTextureToMesh(
+    vertices,
+    zValues,
+    segments,
+    zMin,
+    zMax,
+    currentTexture
+  );
   mesh.position.set(0, 0, 0);
 
   if (previousRotation) {
@@ -124,558 +191,17 @@ function createSurface() {
   scene.add(mesh);
 }
 
-function animate() {
-  requestAnimationFrame(animate);
-  if (mesh) mesh.rotation.y += rotationSpeed;
-
-  // Mise à jour dynamique de la position de caméra
-  camera.position.x =
-    cameraDistance * Math.sin(cameraAngleX) * Math.cos(cameraAngleY);
-  camera.position.y = cameraDistance * Math.sin(cameraAngleY);
-  camera.position.z =
-    cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
-  camera.lookAt(-0, 0, -0);
-
-  if (currentTexture === "animated_rainbow" && animatedGeometry) {
-    animatedMeshTime += 0.01;
-
-    const colors = animatedGeometry.attributes.color.array;
-    const z = animatedGeometry.attributes.position.array;
-
-    for (let i = 0; i < colors.length / 3; i++) {
-      const zi = z[i * 3 + 1];
-      const t = 0.5 + 0.5 * Math.sin(zi * 2 + animatedMeshTime);
-      const color = new THREE.Color().setHSL(t, 1.0, 0.5);
-      colors[i * 3 + 0] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
-    }
-
-    animatedGeometry.attributes.color.needsUpdate = true;
-  }
-  if (animateXY && currentMode === "xyz") {
-    if (moveOnX) offsetX += moveSpeed * 0.01;
-    if (moveOnY) offsetY += moveSpeed * 0.01;
-
-    updateSurface(); // recrée la surface avec nouveaux offsets
-  }
-
-  renderer.render(scene, camera);
-}
-
-const uiPanel = document.getElementById("ui");
-const toggleBtn = document.getElementById("toggleMenuBtn");
-const showBtn = document.getElementById("showMenuBtn");
-
-toggleBtn.addEventListener("click", () => {
-  uiPanel.style.display = "none";
-  showBtn.style.display = "block";
-});
-
-showBtn.addEventListener("click", () => {
-  uiPanel.style.display = "block";
-  showBtn.style.display = "none";
-});
-
-// Contrôles de la caméra
-document.getElementById("zoomControl").addEventListener("input", (e) => {
-  cameraDistance = parseFloat(e.target.value);
-});
-
-document.getElementById("camX").addEventListener("input", (e) => {
-  cameraAngleX = parseFloat(e.target.value) * (Math.PI / 180); // en degrés → radians
-});
-
-document.getElementById("camY").addEventListener("input", (e) => {
-  cameraAngleY = parseFloat(e.target.value) * (Math.PI / 180);
-});
-
-// Vitesse de rotation
-document.getElementById("rotationSpeed").addEventListener("input", (e) => {
-  rotationSpeed = parseFloat(e.target.value);
-});
-
-function createRainbowTexture(vertices, zValues, segments, zMin, zMax) {
-  const geometry = new THREE.BufferGeometry();
-  const colors = [];
-
-  for (let i = 0; i < vertices.length / 3; i++) {
-    const z = zValues[i];
-    const t = (z - zMin) / (zMax - zMin); // Normalisation
-    const hue = t; // teinte sur 0.0 → 1.0
-    const color = new THREE.Color().setHSL(hue, 1.0, 0.5); // saturation 100%, luminosité 50%
-    colors.push(color.r, color.g, color.b);
-  }
-
-  const indices = [];
-  for (let i = 0; i < segments - 1; i++) {
-    for (let j = 0; j < segments - 1; j++) {
-      const a = i * segments + j;
-      const b = a + 1;
-      const c = a + segments;
-      const d = c + 1;
-      indices.push(a, b, d, a, d, c);
-    }
-  }
-
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(vertices, 3)
-  );
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-
-  const material = new THREE.MeshBasicMaterial({
-    vertexColors: true,
-    side: THREE.DoubleSide,
-  });
-
-  return new THREE.Mesh(geometry, material);
-}
-
-function createWireframeTexture(vertices, segments) {
-  const geometry = new THREE.BufferGeometry();
-
-  const indices = [];
-  for (let i = 0; i < segments - 1; i++) {
-    for (let j = 0; j < segments - 1; j++) {
-      const a = i * segments + j;
-      const b = a + 1;
-      const c = a + segments;
-      const d = c + 1;
-      indices.push(a, b, d, a, d, c);
-    }
-  }
-
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(vertices, 3)
-  );
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-
-  const baseColorHex = document.getElementById("colorPicker").value;
-  const color = new THREE.Color(baseColorHex);
-
-  let finalColor = color;
-  if (useColorVariation) {
-    const hsl = {};
-    color.getHSL(hsl);
-    hsl.h = (hsl.h + (Math.random() - 0.5) * 0.1 + 1) % 1;
-    hsl.l = THREE.MathUtils.clamp(hsl.l + (Math.random() - 0.5) * 0.1, 0, 1);
-    finalColor = new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l);
-  }
-
-  const material = new THREE.MeshBasicMaterial({
-    color: finalColor,
-    wireframe: true,
-    side: THREE.DoubleSide,
-  });
-
-  return new THREE.Mesh(geometry, material);
-}
-
-function createGlitchWireframe(vertices, segments, zMin, zMax) {
-  const geometry = new THREE.BufferGeometry();
-
-  const indices = [];
-  for (let i = 0; i < segments - 1; i++) {
-    for (let j = 0; j < segments - 1; j++) {
-      const a = i * segments + j;
-      const b = a + 1;
-      const c = a + segments;
-      const d = c + 1;
-      indices.push(a, b, d, a, d, c);
-    }
-  }
-
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(vertices, 3)
-  );
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-
-  const edges = new THREE.EdgesGeometry(geometry);
-  const lineColors = [];
-  const position = geometry.attributes.position;
-  const vertexCount = edges.attributes.position.count;
-
-  for (let i = 0; i < vertexCount; i++) {
-    const z = position.getZ(i % position.count);
-    const t = (z - zMin) / (zMax - zMin);
-    const hue = 0.7 + 0.2 * t;
-    const color = new THREE.Color().setHSL(hue % 1.0, 1.0, 0.6);
-    lineColors.push(color.r, color.g, color.b);
-  }
-
-  edges.setAttribute("color", new THREE.Float32BufferAttribute(lineColors, 3));
-
-  const material = new THREE.LineBasicMaterial({
-    vertexColors: true,
-  });
-
-  return new THREE.LineSegments(edges, material);
-}
-
-function createColorWireframe(vertices, segments) {
-  const linePositions = [];
-  const lineColors = [];
-
-  const baseColorHex = document.getElementById("colorPicker").value;
-  const baseColor = new THREE.Color(baseColorHex);
-  const hsl = {};
-  baseColor.getHSL(hsl);
-
-  for (let i = 0; i < segments; i++) {
-    for (let j = 0; j < segments - 1; j++) {
-      const idx1 = i * segments + j;
-      const idx2 = i * segments + j + 1;
-      addLine(vertices, idx1, idx2, hsl);
-    }
-  }
-
-  for (let j = 0; j < segments; j++) {
-    for (let i = 0; i < segments - 1; i++) {
-      const idx1 = i * segments + j;
-      const idx2 = (i + 1) * segments + j;
-      addLine(vertices, idx1, idx2, hsl);
-    }
-  }
-
-  function addLine(verts, i1, i2, hslBase) {
-    linePositions.push(
-      verts[i1 * 3],
-      verts[i1 * 3 + 1],
-      verts[i1 * 3 + 2],
-      verts[i2 * 3],
-      verts[i2 * 3 + 1],
-      verts[i2 * 3 + 2]
-    );
-
-    for (let i = 0; i < 2; i++) {
-      let color = new THREE.Color().setHSL(hslBase.h, hslBase.s, hslBase.l);
-      if (useColorVariation) {
-        const variation = (Math.random() - 0.5) * 0.3;
-        const l = THREE.MathUtils.clamp(
-          hslBase.l + (Math.random() - 0.5) * 0.5,
-          0,
-          1
-        );
-        color = new THREE.Color().setHSL(
-          (hslBase.h + variation) % 5.0,
-          hslBase.s,
-          l
-        );
-      }
-      lineColors.push(color.r, color.g, color.b);
-    }
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(linePositions, 3)
-  );
-  geometry.setAttribute(
-    "color",
-    new THREE.Float32BufferAttribute(lineColors, 3)
-  );
-
-  const material = new THREE.LineBasicMaterial({ vertexColors: true });
-
-  return new THREE.LineSegments(geometry, material);
-}
-
-document.querySelectorAll(".textureBtn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document
-      .querySelectorAll(".textureBtn")
-      .forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    const texture = btn.dataset.texture;
-    if (texture === "1") currentTexture = "wire_gradient";
-    if (texture === "2") currentTexture = "wire_detailled";
-    if (texture === "3") currentTexture = "wire_glitch";
-    if (texture === "4") currentTexture = "rainbow";
-    if (texture === "5") currentTexture = "animated_rainbow";
-    if (mesh) scene.remove(mesh); // ⬅️ important pour éviter l'empilement
-    updateSurface();
-  });
-});
-
-document.getElementById("wireSegments").addEventListener("input", (e) => {
-  wireSegments = parseInt(e.target.value);
-  updateSurface();
-});
-
-document.getElementById("presetSelect").addEventListener("change", (e) => {
-  const expr = e.target.value;
-  offsetX = 0;
-  offsetY = 0;
-  if (expr) {
-    currentMode = "xyz"; // <-- Ajout
-
-    document.getElementById("functionInput").value = expr;
-    createSurface();
-  }
-});
-
-document
-  .getElementById("colorVariationToggle")
-  .addEventListener("change", (e) => {
-    useColorVariation = e.target.checked;
-    updateSurface();
-  });
-
-const rootStyle = document.documentElement.style;
-const colorPicker = document.getElementById("colorPicker");
-
-function updateUIColor() {
-  const hex = colorPicker.value;
-  rootStyle.setProperty("--ui-base-color", hex);
-}
-
-colorPicker.addEventListener("input", () => {
-  updateUIColor();
-  if (mesh) scene.remove(mesh);
-  updateSurface();
-});
-
-document.getElementById("colorPicker").addEventListener("input", (e) => {
-  const uiPanel = document.getElementById("ui");
-  const hex = e.target.value;
-  const color = new THREE.Color(hex);
-  const hsl = {};
-  color.getHSL(hsl);
-
-  // on recalcule une couleur RGBA à partir du HSL avec luminosité + alpha
-  const glowColor = `hsla(${Math.floor(hsl.h * 360)}, ${Math.floor(
-    hsl.s * 100
-  )}%, ${Math.floor(hsl.l * 100)}%, 0.45)`;
-
-  uiPanel.style.setProperty("--haloColor", glowColor);
-});
-
-document
-  .getElementById("colorPicker")
-  .addEventListener("input", updateGlowColor);
-updateGlowColor(); // au chargement
-
-function hexToHSL(hex) {
-  const c = hex.replace("#", "");
-  const bigint = parseInt(c, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-
-  const rPerc = r / 255,
-    gPerc = g / 255,
-    bPerc = b / 255;
-  const max = Math.max(rPerc, gPerc, bPerc);
-  const min = Math.min(rPerc, gPerc, bPerc);
-  let h,
-    s,
-    l = (max + min) / 2;
-
-  if (max === min) {
-    h = s = 0;
-  } else {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case rPerc:
-        h = (gPerc - bPerc) / d + (gPerc < bPerc ? 6 : 0);
-        break;
-      case gPerc:
-        h = (bPerc - rPerc) / d + 2;
-        break;
-      case bPerc:
-        h = (rPerc - gPerc) / d + 4;
-        break;
-    }
-    h /= 6;
-  }
-
-  h = Math.round(h * 360);
-  s = Math.round(s * 100);
-  l = Math.round(l * 100);
-  return { h, s, l };
-}
-
-function hslToHex(h, s, l) {
-  s /= 100;
-  l /= 100;
-
-  const k = (n) => (n + h / 30) % 12;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n) =>
-    Math.round(
-      255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))))
-    );
-
-  return `#${[f(0), f(8), f(4)]
-    .map((x) => x.toString(16).padStart(2, "0"))
-    .join("")}`;
-}
-
-function updateGlowColor() {
-  const color = document.getElementById("colorPicker").value;
-  document.documentElement.style.setProperty("--glow-color", color);
-
-  const hsl = hexToHSL(color);
-
-  // 🎯 glow-edge = plus clair + saturé
-  const lighter = hslToHex(
-    hsl.h,
-    Math.min(hsl.s + 20, 100),
-    Math.min(hsl.l + 20, 100)
-  );
-  document.documentElement.style.setProperty("--glow-edge", lighter);
-
-  // 🎯 glow-dark = plus sombre + légère dérive chromatique
-  const shiftedHue = (hsl.h + 20) % 360; // décalage teinte
-  const darker = hslToHex(
-    shiftedHue,
-    Math.min(hsl.s + 15, 100),
-    Math.max(hsl.l - 25, 0)
-  );
-  document.documentElement.style.setProperty("--glow-dark", darker);
-}
-
-function updateThemeColors() {
-  const color = document.getElementById("colorPicker").value;
-
-  // Appliquer la couleur de base
-  document.documentElement.style.setProperty("--ui-base-color", color);
-  document.documentElement.style.setProperty("--glow-color", color);
-
-  // Générer une version plus sombre automatiquement
-  const darker = darkenHex(color, 0.6); // plus sombre à ~60%
-
-  document.documentElement.style.setProperty("--ui-base-color-dark", darker);
-  document.documentElement.style.setProperty("--glow-dark", darker);
-
-  // Variante claire et saturée (optionnelle pour bord vif)
-  const edge = lightenHex(color, 0.3);
-  document.documentElement.style.setProperty("--glow-edge", edge);
-}
-
-function darkenHex(hex, amount = 0.4) {
-  let { r, g, b } = hexToRGB(hex);
-  r = Math.floor(r * (1 - amount));
-  g = Math.floor(g * (1 - amount));
-  b = Math.floor(b * (1 - amount));
-  return rgbToHex(r, g, b);
-}
-
-function lightenHex(hex, amount = 0.3) {
-  let { r, g, b } = hexToRGB(hex);
-  r = Math.min(255, Math.floor(r + (255 - r) * amount));
-  g = Math.min(255, Math.floor(g + (255 - g) * amount));
-  b = Math.min(255, Math.floor(b + (255 - b) * amount));
-  return rgbToHex(r, g, b);
-}
-
-function hexToRGB(hex) {
-  hex = hex.replace("#", "");
-  if (hex.length === 3) {
-    hex = hex
-      .split("")
-      .map((c) => c + c)
-      .join("");
-  }
-  const bigint = parseInt(hex, 16);
-  return {
-    r: (bigint >> 16) & 255,
-    g: (bigint >> 8) & 255,
-    b: bigint & 255,
-  };
-}
-
-function rgbToHex(r, g, b) {
-  return (
-    "#" +
-    [r, g, b]
-      .map((x) => {
-        const hex = x.toString(16);
-        return hex.length === 1 ? "0" + hex : hex;
-      })
-      .join("")
-  );
-}
-
-updateThemeColors();
-
-document.getElementById("colorPicker").addEventListener("input", (e) => {
-  const color = e.target.value;
-  const svg = document.getElementById("logo-svg");
-  if (svg) {
-    svg.style.stroke = color;
-    svg.style.fill = "none";
-  }
-
-  updateUIColor();
-  updateGlowColor();
-  updateThemeColors();
-
-  if (mesh) scene.remove(mesh);
-  updateSurface();
-});
-document.getElementById("rangeSlider").addEventListener("input", (e) => {
-  domainRange = parseFloat(e.target.value);
-  updateSurface();
-});
-
-document
-  .getElementById("generateParametricBtn")
-  .addEventListener("click", () => {
-    const xExpr = document.getElementById("paramX").value;
-    const yExpr = document.getElementById("paramY").value;
-    const zExpr = document.getElementById("paramZ").value;
-
-    const uMin = parseFloat(document.getElementById("uMin").value);
-    const uMax = parseFloat(document.getElementById("uMax").value);
-    const vMin = parseFloat(document.getElementById("vMin").value);
-    const vMax = parseFloat(document.getElementById("vMax").value);
-
-    const segments = 100;
-
-    if (mesh) scene.remove(mesh);
-    mesh = createParametricSurface({
-      xExpr,
-      yExpr,
-      zExpr,
-      uMin,
-      uMax,
-      vMin,
-      vMax,
-      segmentsU: segments,
-      segmentsV: segments,
-    });
-    scene.add(mesh);
-  });
-
-document
-  .getElementById("generateParametricBtn")
-  .addEventListener("click", () => {
-    if (mesh) scene.remove(mesh);
-    createParamSurface();
-  });
-
-function createParamSurface() {
+function generateParametricSurface() {
   currentMode = "parametric";
 
-  const xExpr = document.getElementById("paramX").value;
-  const yExpr = document.getElementById("paramY").value;
-  const zExpr = document.getElementById("paramZ").value;
+  const xExpr = DOM.paramX.value;
+  const yExpr = DOM.paramY.value;
+  const zExpr = DOM.paramZ.value;
 
-  const uMin = parseFloat(document.getElementById("uMin").value);
-  const uMax = parseFloat(document.getElementById("uMax").value);
-  const vMin = parseFloat(document.getElementById("vMin").value);
-  const vMax = parseFloat(document.getElementById("vMax").value);
+  const uMin = parseFloat(DOM.uMin.value);
+  const uMax = parseFloat(DOM.uMax.value);
+  const vMin = parseFloat(DOM.vMin.value);
+  const vMax = parseFloat(DOM.vMax.value);
 
   const segments = wireSegments;
 
@@ -698,40 +224,66 @@ function createParamSurface() {
     result.zValues,
     result.segments,
     result.zMin,
-    result.zMax
+    result.zMax,
+    currentTexture
   );
 
   scene.add(mesh);
 }
 
-function updateSurface() {
+function regenerateSurface() {
   if (mesh) scene.remove(mesh);
   if (currentMode === "xyz") {
-    createSurface();
+    generateXYZSurface();
   } else if (currentMode === "parametric") {
-    createParamSurface();
+    generateParametricSurface();
   }
 }
 
-function applyTextureToMesh(vertices, zValues, segments, zMin, zMax) {
-  switch (currentTexture) {
-    case "rainbow":
-      return createRainbowTexture(vertices, zValues, segments, zMin, zMax);
-    case "wire_detailled":
-      return createWireframeTexture(vertices, segments);
-    case "wire_glitch":
-      return createGlitchWireframe(vertices, segments, zMin, zMax);
-    case "wire_gradient":
-      return createColorWireframe(vertices, segments);
-    case "animated_rainbow":
-      return createAnimatedRainbowMesh(vertices, zValues, segments, zMin, zMax);
-    default:
-      console.warn("Texture inconnue :", currentTexture);
-      return null;
-  }
+function updateUIColor() {
+  const hex = DOM.colorPicker.value;
+  DOM.rootStyle.setProperty("--ui-base-color", hex);
 }
+
+function updateGlowColor() {
+  const color = DOM.colorPicker.value;
+  document.documentElement.style.setProperty("--glow-color", color);
+
+  const hsl = hexToHSL(color);
+
+  const lighter = hslToHex(
+    hsl.h,
+    Math.min(hsl.s + 20, 100),
+    Math.min(hsl.l + 20, 100)
+  );
+  document.documentElement.style.setProperty("--glow-edge", lighter);
+
+  const shiftedHue = (hsl.h + 20) % 360;
+  const darker = hslToHex(
+    shiftedHue,
+    Math.min(hsl.s + 15, 100),
+    Math.max(hsl.l - 25, 0)
+  );
+  document.documentElement.style.setProperty("--glow-dark", darker);
+}
+
+function updateThemeColors() {
+  const color = DOM.colorPicker.value;
+
+  document.documentElement.style.setProperty("--ui-base-color", color);
+  document.documentElement.style.setProperty("--glow-color", color);
+
+  const darker = darkenHex(color, 0.6);
+
+  document.documentElement.style.setProperty("--ui-base-color-dark", darker);
+  document.documentElement.style.setProperty("--glow-dark", darker);
+
+  const edge = lightenHex(color, 0.3);
+  document.documentElement.style.setProperty("--glow-edge", edge);
+}
+
 function populateXYZPresets() {
-  const select = document.getElementById("presetSelect");
+  const select = DOM.presetSelect;
   FUNCTION_PRESETS.forEach((preset) => {
     const option = document.createElement("option");
     option.value = preset.value;
@@ -739,10 +291,9 @@ function populateXYZPresets() {
     select.appendChild(option);
   });
 }
-populateXYZPresets();
 
 function populateParametricPresets() {
-  const select = document.getElementById("presetParamSelect");
+  const select = DOM.presetParamSelect;
   PARAMETRIC_PRESETS.forEach((preset) => {
     const option = document.createElement("option");
     option.value = preset.name;
@@ -750,104 +301,170 @@ function populateParametricPresets() {
     select.appendChild(option);
   });
 }
-populateParametricPresets();
 
-document.getElementById("presetParamSelect").addEventListener("change", (e) => {
-  const selected = PARAMETRIC_PRESETS.find((p) => p.name === e.target.value);
-  if (!selected) return;
-
-  // Mise à jour des champs
-  document.getElementById("paramX").value = selected.x;
-  document.getElementById("paramY").value = selected.y;
-  document.getElementById("paramZ").value = selected.z;
-
-  document.getElementById("uMin").value = selected.uMin;
-  document.getElementById("uMax").value = selected.uMax;
-  document.getElementById("vMin").value = selected.vMin;
-  document.getElementById("vMax").value = selected.vMax;
-
-  // Génération directe
-  currentMode = "parametric";
-  createParamSurface();
-});
-
-document.getElementById("morphSlider").addEventListener("input", (e) => {
-  morphT = parseFloat(e.target.value);
-  if (currentMode === "xyz") updateSurface();
-});
-
-document.getElementById("morphSlider").addEventListener("input", (e) => {
-  morphT = parseFloat(e.target.value);
-  document.getElementById("morphValue").textContent = morphT.toFixed(2);
-  if (currentMode === "xyz") updateSurface();
-});
-
-function createAnimatedRainbowMesh(vertices, zValues, segments, zMin, zMax) {
-  const geometry = new THREE.BufferGeometry();
-
-  const indices = [];
-  for (let i = 0; i < segments - 1; i++) {
-    for (let j = 0; j < segments - 1; j++) {
-      const a = i * segments + j;
-      const b = a + 1;
-      const c = a + segments;
-      const d = c + 1;
-      indices.push(a, b, d, a, d, c);
-    }
-  }
-
-  const colors = [];
-  for (let i = 0; i < zValues.length; i++) {
-    const z = zValues[i];
-    const t = (z - zMin) / (zMax - zMin);
-    const hue = t;
-    const color = new THREE.Color().setHSL(hue, 1.0, 0.5);
-    colors.push(color.r, color.g, color.b);
-  }
-
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(vertices, 3)
-  );
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-
-  animatedGeometry = geometry; // pour animation
-
-  animatedMaterial = new THREE.MeshBasicMaterial({
-    vertexColors: true,
-    side: THREE.DoubleSide,
-  });
-
-  return new THREE.Mesh(geometry, animatedMaterial);
+function setupUIEvents() {
+  setupCameraControls();
+  setupMovementControls();
+  setupTextureControls();
+  setupHideUIControls();
+  setupAnimationControls();
+  setupFunctionsControls();
 }
 
-document.getElementById("moveToggle").addEventListener("change", (e) => {
-  animateXY = e.target.checked;
-});
-
-document.getElementById("moveX").addEventListener("change", (e) => {
-  moveOnX = e.target.checked;
-});
-
-document.getElementById("moveY").addEventListener("change", (e) => {
-  moveOnY = e.target.checked;
-});
-
-document.getElementById("resetOffsetBtn").addEventListener("click", () => {
-  offsetX = 0;
-  offsetY = 0;
-  updateSurface();
-});
-
-document.getElementById("moveSpeed").addEventListener("input", (e) => {
-  moveSpeed = parseFloat(e.target.value);
-});
-
-["uMin", "uMax", "vMin", "vMax"].forEach((id) => {
-  document.getElementById(id).addEventListener("input", () => {
-    currentMode = "parametric";
-    createParamSurface();
+function setupCameraControls() {
+  DOM.zoomControl.addEventListener("input", (e) => {
+    setCameraDistance(parseFloat(e.target.value));
   });
-});
+
+  DOM.camX.addEventListener("input", (e) => {
+    cameraAngleX = parseFloat(e.target.value) * (Math.PI / 180);
+    setCameraAngles(cameraAngleX, cameraAngleY);
+  });
+
+  DOM.camY.addEventListener("input", (e) => {
+    cameraAngleY = parseFloat(e.target.value) * (Math.PI / 180);
+    setCameraAngles(cameraAngleX, cameraAngleY);
+  });
+}
+
+function setupMovementControls() {
+  DOM.moveToggle.addEventListener("change", (e) => {
+    animateXY = e.target.checked;
+  });
+
+  DOM.moveX.addEventListener("change", (e) => {
+    moveOnX = e.target.checked;
+  });
+
+  DOM.moveY.addEventListener("change", (e) => {
+    moveOnY = e.target.checked;
+  });
+
+  DOM.moveSpeed.addEventListener("input", (e) => {
+    moveSpeed = parseFloat(e.target.value);
+  });
+
+  DOM.resetOffsetBtn.addEventListener("click", () => {
+    offsetX = 0;
+    offsetY = 0;
+    regenerateSurface();
+  });
+}
+
+function setupTextureControls() {
+  document.querySelectorAll(".textureBtn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document
+        .querySelectorAll(".textureBtn")
+        .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      const texture = btn.dataset.texture;
+      currentTexture = textureMap[texture] || currentTexture;
+
+      if (mesh) scene.remove(mesh); // ⬅️ important pour éviter l'empilement
+      regenerateSurface();
+    });
+  });
+
+  DOM.colorVariationToggle.addEventListener("change", (e) => {
+    setUseColorVariation(e.target.checked);
+    regenerateSurface();
+  });
+
+  DOM.colorPicker.addEventListener("input", (e) => {
+    const hex = e.target.value;
+    const color = new THREE.Color(hex);
+    const hsl = {};
+    color.getHSL(hsl);
+
+    updateUIColor();
+    updateGlowColor();
+    updateThemeColors();
+
+    const svg = DOM.logoSvg;
+    if (svg) {
+      svg.style.stroke = hex;
+      svg.style.fill = "none";
+    }
+
+    if (mesh) scene.remove(mesh);
+    regenerateSurface();
+  });
+}
+
+function setupHideUIControls() {
+  DOM.toggleBtn.addEventListener("click", () => {
+    DOM.uiPanel.style.display = "none";
+    DOM.showBtn.style.display = "block";
+  });
+
+  DOM.showBtn.addEventListener("click", () => {
+    DOM.uiPanel.style.display = "block";
+    DOM.showBtn.style.display = "none";
+  });
+}
+
+function setupAnimationControls() {
+  DOM.rotationSpeed.addEventListener("input", (e) => {
+    rotationSpeed = parseFloat(e.target.value);
+  });
+  DOM.rangeSlider.addEventListener("input", (e) => {
+    domainRange = parseFloat(e.target.value);
+    regenerateSurface();
+  });
+  DOM.morphSlider.addEventListener("input", (e) => {
+    morphT = parseFloat(e.target.value);
+    DOM.morphValue.textContent = morphT.toFixed(2);
+    if (currentMode === "xyz") regenerateSurface();
+  });
+  DOM.wireSegments.addEventListener("input", (e) => {
+    wireSegments = parseInt(e.target.value);
+    regenerateSurface();
+  });
+}
+
+function setupFunctionsControls() {
+  DOM.updateXYZBtn.addEventListener("click", () => {
+    currentMode = "xyz";
+    regenerateSurface();
+  });
+  DOM.presetSelect.addEventListener("change", (e) => {
+    const expr = e.target.value;
+    offsetX = 0;
+    offsetY = 0;
+    if (expr) {
+      currentMode = "xyz";
+
+      DOM.functionInput.value = expr;
+      generateXYZSurface();
+    }
+  });
+
+  ["uMin", "uMax", "vMin", "vMax"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", () => {
+      currentMode = "parametric";
+      generateParametricSurface();
+    });
+  });
+  DOM.updateParamBtn.addEventListener("click", () => {
+    if (mesh) scene.remove(mesh);
+    generateParametricSurface();
+  });
+  DOM.presetParamSelect.addEventListener("change", (e) => {
+    const selected = PARAMETRIC_PRESETS.find((p) => p.name === e.target.value);
+    if (!selected) return;
+
+    DOM.paramX.value = selected.x;
+    DOM.paramY.value = selected.y;
+    DOM.paramZ.value = selected.z;
+
+    DOM.uMin.value = selected.uMin;
+    DOM.uMax.value = selected.uMax;
+    DOM.vMin.value = selected.vMin;
+    DOM.vMax.value = selected.vMax;
+
+    currentMode = "parametric";
+    generateParametricSurface();
+  });
+}

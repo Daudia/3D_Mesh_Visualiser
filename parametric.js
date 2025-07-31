@@ -41,30 +41,3 @@ export function createParametricSurface({
     segments: segmentsU, // nécessaire pour recréer les indices ou mesh
   };
 }
-
-export const parametricPresets = [
-  {
-    name: "Tore",
-    x: "(2 + Math.cos(v)) * Math.cos(u)",
-    y: "(2 + Math.cos(v)) * Math.sin(u)",
-    z: "Math.sin(v)",
-    uRange: [0, 2 * Math.PI],
-    vRange: [0, 2 * Math.PI],
-  },
-  {
-    name: "Sphère",
-    x: "Math.sin(v) * Math.cos(u)",
-    y: "Math.sin(v) * Math.sin(u)",
-    z: "Math.cos(v)",
-    uRange: [0, 2 * Math.PI],
-    vRange: [0, Math.PI],
-  },
-  {
-    name: "Hélicoïde",
-    x: "u * Math.cos(v)",
-    y: "u * Math.sin(v)",
-    z: "v",
-    uRange: [0, 2],
-    vRange: [0, 4 * Math.PI],
-  },
-];

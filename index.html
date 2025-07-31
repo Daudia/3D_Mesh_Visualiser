@@ -14,7 +14,6 @@
     />
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script type="module" src="parametric.js"></script>
   </head>
   <body>
     <div id="logo-signature"></div>
@@ -38,7 +37,7 @@
           <label for="functionInput2">Function 2 z = f₂(x, y)</label>
           <input type="text" id="functionInput2" value="Math.sin(x*y)" />
         </div>
-        <button id="updateBtn">Update</button>
+        <button id="updateXYZBtn">Update</button>
 
         <div class="inline-row">
           <label for="presetSelect">Sample functions :</label>
@@ -86,7 +85,7 @@
           <label>]</label>
         </div>
 
-        <button id="generateParametricBtn">Update</button>
+        <button id="updateParamBtn">Update</button>
 
         <div class="inline-row">
           <label for="presetSelect">Sample functions :</label>
@@ -214,7 +213,6 @@
     <div id="showMenuBtn">Show Menu</div>
 
     <div id="canvasContainer"></div>
-    <script src="presets.js"></script>
 
     <script type="module" src="main.js"></script>
 
